@@ -1,31 +1,35 @@
 # Handoff — 2026-05-26
 
-**Head commit (project):** 9cec110 — ci: add repository_dispatch trigger
-**Head commit (workspace):** 14e81d1 — init: workspace scaffold
+**Head commit (project):** 561ffeb — refactor(core): address code quality follow-ups (#9)
+**Head commit (workspace):** e4a1a0a — archive plan to attic
 
 ## What Changed This Session
 
-Session was entirely workspace infrastructure recovery. Discovered openclaw and
-life workspaces had no isolated git repos — both were sharing the parent casehub
-workspace repo. Audited all casehub workspaces (11 correct, 2 wrong). Fixed both:
-`wsp-casehub-openclaw` and `wsp-casehub-life` now exist as isolated GitHub repos.
-Parent workspace restored (life's stale branch deleted, dirs untracked + gitignored).
-casehubio/parent#73 filed for checklist fix — implemented same day by parent session.
-
-Epic #2 never started. Workspace is now correctly initialized and ready.
+Epic 2 (OpenClaw hook API client) implemented and closed. `OpenClawHookClient`,
+`OpenClawGatewayClient`, `BearerTokenRequestFilter`, `AgentInvocationRequest` (with
+`forWebhook()` factory), `OpenClawClientConfig`, `OpenClawSession`, and supporting types
+all live in `core/`. 17 tests (12 unit + 5 WireMock IT). Real bug discovered: Quarkus
+REST Client throws `WebApplicationException` on 5xx, not returning a Response — caught
+by the WireMock IT and fixed. Issue #9 (code quality follow-ups) addressed in the same
+branch. Both issues closed. Blog entry published. Branch stamped closed.
 
 ## Immediate Next Step
 
-Run `work-start` referencing issue #2 (Epic 2 — OpenClaw hook API client).
-This is the first time work-start will run against the correctly initialized workspace.
+`work-start` referencing issue #3 (ChannelContextWindow service) — ring buffer,
+`MessageObserver` SPI, REST endpoint `GET /channel-context/{agentId}?since={seq}`.
+
+## What's Left
+
+- casehubio/parent#77 — deep-dive doc sync for the hook client (peer repo, their session)
+- Verify `sessionName` JSON field name (camelCase vs snake_case) against live OpenClaw API
+  before Epic 4 (WorkerProvisioner) — documented in `AgentInvocationRequest.forWebhook()` Javadoc
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #2 | Epic 2: OpenClaw hook API client | M | Med | Core integration — `core/` module. Start here. |
-| #3 | Epic 3: ChannelContextWindow service | M | Med | Ring buffer + REST API |
-| #4 | Epic 4: CaseHub SPI implementations | L | High | WorkerProvisioner, ChannelBackend |
+| #3 | Epic 3: ChannelContextWindow service | M | Med | Ring buffer + REST API. Start here. |
+| #4 | Epic 4: CaseHub SPI implementations | L | High | WorkerProvisioner, ChannelBackend — verify sessionName field first |
 | #5 | Epic 5: Python SDK component | M | Med | `before_prompt_build` hook |
 | #6 | Epic 6: Bidirectional wiring end-to-end | M | High | |
 | #7 | Epic 7: casehub OpenClaw skill pack | M | Med | |
@@ -33,6 +37,7 @@ This is the first time work-start will run against the correctly initialized wor
 
 ## References
 
-- Spec: `specs/2026-05-25-workspace-git-isolation-fix.md`
-- Plan: `plans/2026-05-25-workspace-git-isolation-fix.md`
+- Design spec: `proj/docs/specs/2026-05-26-openclaw-hook-client-design.md`
 - Integration spec: `proj/docs/specs/openclaw-integration.md`
+- Blog: `blog/2026-05-26-mdp01-openclaw-hook-client.md`
+- Garden entries: GE-20260526-a08a81, GE-20260526-5a7d46, GE-20260526-286ac7
