@@ -1,0 +1,8 @@
+branch: issue-002-openclaw-hook-client
+project-sha: b0d6aed854f4f5967b29bd1bbd7ede796fe37fa9
+date: 2026-05-26
+issue: 2
+issue-repo: casehubio/openclaw
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
