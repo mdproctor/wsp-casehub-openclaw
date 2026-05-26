@@ -19,13 +19,14 @@ core/src/main/java/io/casehub/openclaw/client/
   OpenClawInvocationException.java                            ← unchecked exception
   OpenClawClientConfig.java                                   ← @ConfigMapping (gateway, delivery, agent sections)
   OpenClawSession.java                                        ← record(agentId, sessionKey, webhookUrl)
-  AgentInvocationRequest.java                                 ← record for POST /hooks/agent body
+  AgentInvocationRequest.java                                 ← record for POST /hooks/agent body + forWebhook() factory
   AgentWakeRequest.java                                       ← record for POST /hooks/wake body
   BearerTokenRequestFilter.java                               ← @ApplicationScoped ClientRequestFilter
   OpenClawGatewayClient.java                                  ← @RegisterRestClient interface
   OpenClawHookClient.java                                     ← @ApplicationScoped session registry + invocation
 
 core/src/test/java/io/casehub/openclaw/client/
+  OpenClawWireMockResource.java                               ← QuarkusTestResourceLifecycleManager (dynamic port)
   OpenClawHookClientTest.java                                 ← pure unit tests (Mockito, no Quarkus)
   OpenClawGatewayClientIT.java                                ← @QuarkusTest + WireMock (HTTP + auth)
 
@@ -132,7 +133,9 @@ public record OpenClawSession(String agentId, String sessionKey, String webhookU
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C /Users/mdproctor/claude/casehub/openclaw add core/src/main/java/io/casehub/openclaw/client/OpenClawInvocationException.java core/src/main/java/io/casehub/openclaw/client/OpenClawSession.java
+git -C /Users/mdproctor/claude/casehub/openclaw add \
+  core/src/main/java/io/casehub/openclaw/client/OpenClawInvocationException.java \
+  core/src/main/java/io/casehub/openclaw/client/OpenClawSession.java
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "feat(core): add OpenClawInvocationException and OpenClawSession record
 
 Refs #2"
@@ -153,7 +156,6 @@ package io.casehub.openclaw.client;
 
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
-import io.smallrye.config.WithName;
 
 @ConfigMapping(prefix = "casehub.openclaw")
 public interface OpenClawClientConfig {
@@ -165,34 +167,35 @@ public interface OpenClawClientConfig {
     Agent agent();
 
     interface Gateway {
-        @WithName("url")
+        // SmallRye @ConfigMapping auto-converts bearerToken() → bearer-token
         String url();
-
-        @WithName("bearer-token")
         String bearerToken();
     }
 
     interface Delivery {
-        @WithName("base-url")
+        // No consumers in this epic — placed here to establish the config boundary
+        // for WorkerProvisioner (casehub/ module, later epic), which constructs:
+        //   webhookUrl = baseUrl() + "/channel/" + qhorusChannelId
         String baseUrl();
     }
 
     interface Agent {
-        @WithName("default-model")
         @WithDefault("claude-opus-4-5")
         String defaultModel();
 
-        @WithName("default-timeout-seconds")
         @WithDefault("120")
         int defaultTimeoutSeconds();
     }
 }
 ```
 
+`@WithName` is omitted throughout — SmallRye Config auto-converts Java camelCase method names to kebab-case config keys (`bearerToken` → `bearer-token`, `defaultModel` → `default-model`, etc.).
+
 - [ ] **Step 2: Commit**
 
 ```bash
-git -C /Users/mdproctor/claude/casehub/openclaw add core/src/main/java/io/casehub/openclaw/client/OpenClawClientConfig.java
+git -C /Users/mdproctor/claude/casehub/openclaw add \
+  core/src/main/java/io/casehub/openclaw/client/OpenClawClientConfig.java
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "feat(core): add OpenClawClientConfig @ConfigMapping
 
 Refs #2"
@@ -221,12 +224,44 @@ public record AgentInvocationRequest(
         String to,
         String model,
         int timeoutSeconds,
-        @JsonInclude(JsonInclude.Include.NON_NULL) String sessionName
+        @JsonInclude(JsonInclude.Include.NON_NULL) String sessionName,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String wakeMode
 ) {
+    /**
+     * Factory for the only delivery mode casehub-openclaw uses. Callers must not
+     * construct AgentInvocationRequest directly — use this factory to prevent
+     * accidental use of a different deliver value.
+     *
+     * sessionName: maps to OpenClaw's session_name (Python SDK). JSON field name is
+     * "sessionName" (camelCase), consistent with other OpenClaw fields (agentId,
+     * timeoutSeconds). If OpenClaw's HTTP API uses snake_case instead, add
+     * @JsonProperty("session_name") to the component — to be verified against the
+     * live API before casehub/ SPI implementations are built.
+     *
+     * wakeMode: how the agent is woken. Null uses OpenClaw's default (appropriate for
+     * the direct-call pattern). Values are undocumented in the current spec — pass
+     * null until verified. If OpenClaw documents required values for webhook delivery
+     * mode, update accordingly.
+     *
+     * /hooks/wake body format: {agentId, message} is assumed based on "lightweight
+     * nudge — wakes agent with a text event" in the spec. No body schema is specified.
+     * Verify against the live API before relying on wake() in production.
+     */
+    static AgentInvocationRequest forWebhook(
+            String message,
+            String agentId,
+            String to,
+            String model,
+            int timeoutSeconds,
+            String sessionName,
+            String wakeMode) {
+        return new AgentInvocationRequest(
+                message, agentId, "webhook", to, model, timeoutSeconds, sessionName, wakeMode);
+    }
 }
 ```
 
-`deliver` is always `"webhook"` when constructed by `OpenClawHookClient`. `sessionName` is nullable — `@JsonInclude(NON_NULL)` on the component means a null value is omitted from the serialized JSON body (not sent as `null`), so OpenClaw deployments without `session_name` support are unaffected.
+Both `sessionName` and `wakeMode` carry `@JsonInclude(NON_NULL)` — null values are omitted from the serialized JSON body. OpenClaw deployments that do not support these fields are unaffected.
 
 - [ ] **Step 2: Create `AgentWakeRequest`**
 
@@ -241,8 +276,13 @@ public record AgentWakeRequest(String agentId, String message) {
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C /Users/mdproctor/claude/casehub/openclaw add core/src/main/java/io/casehub/openclaw/client/AgentInvocationRequest.java core/src/main/java/io/casehub/openclaw/client/AgentWakeRequest.java
+git -C /Users/mdproctor/claude/casehub/openclaw add \
+  core/src/main/java/io/casehub/openclaw/client/AgentInvocationRequest.java \
+  core/src/main/java/io/casehub/openclaw/client/AgentWakeRequest.java
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "feat(core): add AgentInvocationRequest and AgentWakeRequest records
+
+AgentInvocationRequest.forWebhook() factory enforces deliver=webhook.
+wakeMode and sessionName are optional/nullable per @JsonInclude(NON_NULL).
 
 Refs #2"
 ```
@@ -287,9 +327,7 @@ public class BearerTokenRequestFilter implements ClientRequestFilter {
 }
 ```
 
-Note: `@ApplicationScoped` is required — Quarkus uses CDI to inject the filter when registered via `@RegisterProvider`. `@Provider` (JAX-RS server annotation) must NOT appear here.
-
-The package-private constructor (`BearerTokenRequestFilter(String token)`) is for direct unit testing without CDI.
+`@ApplicationScoped` is required — Quarkus uses CDI to instantiate the filter when it is registered via `@RegisterProvider`. `@Provider` (JAX-RS server-side annotation) must NOT appear here. The package-private constructor is for direct unit testing.
 
 - [ ] **Step 2: Create `OpenClawGatewayClient`**
 
@@ -322,12 +360,14 @@ public interface OpenClawGatewayClient {
 }
 ```
 
-Config key `openclaw-gateway` maps to `quarkus.rest-client.openclaw-gateway.url` in properties. `@RegisterProvider` on the interface — not via `RestClientBuilder` — is the only pattern that reliably applies the filter (GE-20260415-dfa8ba).
+Config key `openclaw-gateway` maps to `quarkus.rest-client.openclaw-gateway.url`. `@RegisterProvider` on the interface — not via `RestClientBuilder` — is the only pattern that reliably applies the filter (GE-20260415-dfa8ba).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C /Users/mdproctor/claude/casehub/openclaw add core/src/main/java/io/casehub/openclaw/client/BearerTokenRequestFilter.java core/src/main/java/io/casehub/openclaw/client/OpenClawGatewayClient.java
+git -C /Users/mdproctor/claude/casehub/openclaw add \
+  core/src/main/java/io/casehub/openclaw/client/BearerTokenRequestFilter.java \
+  core/src/main/java/io/casehub/openclaw/client/OpenClawGatewayClient.java
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "feat(core): add OpenClawGatewayClient @RegisterRestClient and BearerTokenRequestFilter
 
 Refs #2"
@@ -335,13 +375,13 @@ Refs #2"
 
 ---
 
-## Task 6: `OpenClawHookClient` — TDD (session registry)
+## Task 6: `OpenClawHookClient` — TDD (session registry + invocation)
 
 **Files:**
 - Create: `core/src/test/java/io/casehub/openclaw/client/OpenClawHookClientTest.java`
 - Create: `core/src/main/java/io/casehub/openclaw/client/OpenClawHookClient.java`
 
-- [ ] **Step 1: Write the failing session registry tests**
+- [ ] **Step 1: Write the failing session registry and invocation tests**
 
 ```java
 // core/src/test/java/io/casehub/openclaw/client/OpenClawHookClientTest.java
@@ -350,6 +390,7 @@ package io.casehub.openclaw.client;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -416,15 +457,15 @@ class OpenClawHookClientTest {
 
     @Test
     void invoke_registeredSession_callsGatewayWithCorrectRequest() {
-        Response ok = mock(Response.class);
-        when(ok.getStatus()).thenReturn(200);
+        Response ok = mockResponse(200);
         when(gatewayClient.invokeAgent(any())).thenReturn(ok);
 
         hookClient.registerSession("finance-agent", "session-key-1",
                 "http://casehub.test/delivery/channel/abc");
         hookClient.invoke("finance-agent", "Pull transactions", "claude-haiku-4-5-20251001", 45);
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AgentInvocationRequest.class);
+        ArgumentCaptor<AgentInvocationRequest> captor =
+                ArgumentCaptor.forClass(AgentInvocationRequest.class);
         verify(gatewayClient).invokeAgent(captor.capture());
         AgentInvocationRequest req = captor.getValue();
         assertThat(req.agentId()).isEqualTo("finance-agent");
@@ -438,38 +479,43 @@ class OpenClawHookClientTest {
 
     @Test
     void invoke_nullModel_usesConfigDefault() {
-        Response ok = mock(Response.class);
-        when(ok.getStatus()).thenReturn(200);
-        when(gatewayClient.invokeAgent(any())).thenReturn(ok);
-
+        when(gatewayClient.invokeAgent(any())).thenReturn(mockResponse(200));
         hookClient.registerSession("finance-agent", "key", "http://webhook");
         hookClient.invoke("finance-agent", "msg", null, 30);
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AgentInvocationRequest.class);
+        ArgumentCaptor<AgentInvocationRequest> captor =
+                ArgumentCaptor.forClass(AgentInvocationRequest.class);
+        verify(gatewayClient).invokeAgent(captor.capture());
+        assertThat(captor.getValue().model()).isEqualTo("claude-opus-4-5");
+    }
+
+    @Test
+    void invoke_blankModel_usesConfigDefault() {
+        when(gatewayClient.invokeAgent(any())).thenReturn(mockResponse(200));
+        hookClient.registerSession("finance-agent", "key", "http://webhook");
+        hookClient.invoke("finance-agent", "msg", "  ", 30);
+
+        ArgumentCaptor<AgentInvocationRequest> captor =
+                ArgumentCaptor.forClass(AgentInvocationRequest.class);
         verify(gatewayClient).invokeAgent(captor.capture());
         assertThat(captor.getValue().model()).isEqualTo("claude-opus-4-5");
     }
 
     @Test
     void invoke_zeroTimeout_usesConfigDefault() {
-        Response ok = mock(Response.class);
-        when(ok.getStatus()).thenReturn(200);
-        when(gatewayClient.invokeAgent(any())).thenReturn(ok);
-
+        when(gatewayClient.invokeAgent(any())).thenReturn(mockResponse(200));
         hookClient.registerSession("finance-agent", "key", "http://webhook");
         hookClient.invoke("finance-agent", "msg", "claude-opus-4-5", 0);
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AgentInvocationRequest.class);
+        ArgumentCaptor<AgentInvocationRequest> captor =
+                ArgumentCaptor.forClass(AgentInvocationRequest.class);
         verify(gatewayClient).invokeAgent(captor.capture());
         assertThat(captor.getValue().timeoutSeconds()).isEqualTo(120);
     }
 
     @Test
     void invoke_gatewayReturns5xx_throwsInvocationException() {
-        Response err = mock(Response.class);
-        when(err.getStatus()).thenReturn(503);
-        when(gatewayClient.invokeAgent(any())).thenReturn(err);
-
+        when(gatewayClient.invokeAgent(any())).thenReturn(mockResponse(503));
         hookClient.registerSession("finance-agent", "key", "http://webhook");
         assertThatThrownBy(() -> hookClient.invoke("finance-agent", "msg", null, 0))
                 .isInstanceOf(OpenClawInvocationException.class)
@@ -480,13 +526,11 @@ class OpenClawHookClientTest {
 
     @Test
     void wake_callsGatewayWithoutRequiringSession() {
-        Response ok = mock(Response.class);
-        when(ok.getStatus()).thenReturn(200);
-        when(gatewayClient.wakeAgent(any())).thenReturn(ok);
-
+        when(gatewayClient.wakeAgent(any())).thenReturn(mockResponse(200));
         hookClient.wake("home-agent", "Check boiler");
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AgentWakeRequest.class);
+        ArgumentCaptor<AgentWakeRequest> captor =
+                ArgumentCaptor.forClass(AgentWakeRequest.class);
         verify(gatewayClient).wakeAgent(captor.capture());
         assertThat(captor.getValue().agentId()).isEqualTo("home-agent");
         assertThat(captor.getValue().message()).isEqualTo("Check boiler");
@@ -494,16 +538,19 @@ class OpenClawHookClientTest {
 
     @Test
     void wake_gatewayReturns5xx_throwsInvocationException() {
-        Response err = mock(Response.class);
-        when(err.getStatus()).thenReturn(500);
-        when(gatewayClient.wakeAgent(any())).thenReturn(err);
-
+        when(gatewayClient.wakeAgent(any())).thenReturn(mockResponse(500));
         assertThatThrownBy(() -> hookClient.wake("home-agent", "msg"))
                 .isInstanceOf(OpenClawInvocationException.class)
                 .hasMessageContaining("500");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static Response mockResponse(int status) {
+        Response r = mock(Response.class);
+        when(r.getStatus()).thenReturn(status);
+        return r;
+    }
 
     private static OpenClawClientConfig mockConfig(String model, int timeoutSecs) {
         OpenClawClientConfig config = mock(OpenClawClientConfig.class);
@@ -580,39 +627,52 @@ public class OpenClawHookClient {
             throw new OpenClawInvocationException(
                     "No session registered for agentId: " + agentId);
         }
-        String effectiveModel = (model != null) ? model : config.agent().defaultModel();
-        int effectiveTimeout = (timeoutSeconds > 0) ? timeoutSeconds
-                                                    : config.agent().defaultTimeoutSeconds();
-        AgentInvocationRequest request = new AgentInvocationRequest(
-                message, agentId, "webhook", session.webhookUrl(),
-                effectiveModel, effectiveTimeout, session.sessionKey());
+        String effectiveModel = (model == null || model.isBlank())
+                ? config.agent().defaultModel()
+                : model;
+        int effectiveTimeout = (timeoutSeconds > 0)
+                ? timeoutSeconds
+                : config.agent().defaultTimeoutSeconds();
+        AgentInvocationRequest request = AgentInvocationRequest.forWebhook(
+                message, agentId, session.webhookUrl(),
+                effectiveModel, effectiveTimeout, session.sessionKey(), null);
         Response response = gatewayClient.invokeAgent(request);
-        if (response.getStatus() / 100 != 2) {
-            throw new OpenClawInvocationException(
-                    "OpenClaw /hooks/agent returned HTTP " + response.getStatus()
-                    + " for agentId: " + agentId);
+        try {
+            if (response.getStatus() / 100 != 2) {
+                throw new OpenClawInvocationException(
+                        "OpenClaw /hooks/agent returned HTTP " + response.getStatus()
+                        + " for agentId: " + agentId);
+            }
+        } finally {
+            response.close();
         }
     }
 
     public void wake(String agentId, String message) {
         Response response = gatewayClient.wakeAgent(new AgentWakeRequest(agentId, message));
-        if (response.getStatus() / 100 != 2) {
-            throw new OpenClawInvocationException(
-                    "OpenClaw /hooks/wake returned HTTP " + response.getStatus()
-                    + " for agentId: " + agentId);
+        try {
+            if (response.getStatus() / 100 != 2) {
+                throw new OpenClawInvocationException(
+                        "OpenClaw /hooks/wake returned HTTP " + response.getStatus()
+                        + " for agentId: " + agentId);
+            }
+        } finally {
+            response.close();
         }
     }
 }
 ```
 
-- [ ] **Step 4: Run tests — confirm they pass**
+`Response.close()` is called in `finally` in both methods — `jakarta.ws.rs.core.Response` declares `close()` but does not implement `AutoCloseable`, so `try-with-resources` does not compile. The `finally` block ensures the connection is returned to the pool on both success and exception paths.
+
+- [ ] **Step 4: Run tests — confirm all 12 pass**
 
 ```bash
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn --batch-mode test -pl core -am \
   -Dtest=OpenClawHookClientTest -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-Expected: `BUILD SUCCESS`, all 11 tests green.
+Expected: `BUILD SUCCESS`, 12 tests green (4 session registry + 6 invoke + 2 wake).
 
 - [ ] **Step 5: Commit**
 
@@ -622,7 +682,8 @@ git -C /Users/mdproctor/claude/casehub/openclaw add \
   core/src/test/java/io/casehub/openclaw/client/OpenClawHookClientTest.java
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "feat(core): implement OpenClawHookClient with session registry and invocation
 
-TDD: all session registry and invocation unit tests pass.
+TDD: 12 unit tests pass — session registry, invoke defaults, error paths,
+wake without session requirement. Response.close() in finally on both paths.
 
 Refs #2"
 ```
@@ -633,69 +694,105 @@ Refs #2"
 
 **Files:**
 - Create: `core/src/test/resources/application.properties`
+- Create: `core/src/test/java/io/casehub/openclaw/client/OpenClawWireMockResource.java`
 - Create: `core/src/test/java/io/casehub/openclaw/client/OpenClawGatewayClientIT.java`
 
-- [ ] **Step 1: Write failing integration test**
-
-First, create the test config:
+- [ ] **Step 1: Create test application.properties**
 
 ```properties
 # core/src/test/resources/application.properties
-casehub.openclaw.gateway.bearer-token=default-test-token
 casehub.openclaw.delivery.base-url=http://casehub.test/openclaw/delivery
 casehub.openclaw.agent.default-model=claude-haiku-4-5-20251001
 casehub.openclaw.agent.default-timeout-seconds=30
-# gateway URL overridden per-profile — no default needed
-quarkus.rest-client.openclaw-gateway.url=http://localhost:9090
+
+# bearer-token and gateway URL injected by OpenClawWireMockResource at test startup
+# (values here are placeholders — overridden by the resource lifecycle manager)
+casehub.openclaw.gateway.bearer-token=placeholder
+quarkus.rest-client.openclaw-gateway.url=http://localhost:9999
+
+# REST client timeouts — guard against a hung OpenClaw gateway during tests
+quarkus.rest-client.openclaw-gateway.connect-timeout=2000
+quarkus.rest-client.openclaw-gateway.read-timeout=10000
 ```
 
-Then write the integration test:
+Production `application.properties` in `app/` should set these to appropriate values:
+- `connect-timeout`: 5000 ms
+- `read-timeout`: at least `agent.default-timeout-seconds * 1000 + 10000` ms (buffer above execution budget)
+
+- [ ] **Step 2: Create `OpenClawWireMockResource`**
+
+```java
+// core/src/test/java/io/casehub/openclaw/client/OpenClawWireMockResource.java
+package io.casehub.openclaw.client;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+
+import java.util.Map;
+
+public class OpenClawWireMockResource implements QuarkusTestResourceLifecycleManager {
+
+    // Accessible from test class for stubbing and verification
+    static WireMockServer INSTANCE;
+
+    private WireMockServer server;
+
+    @Override
+    public Map<String, String> start() {
+        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        server.start();
+        INSTANCE = server;
+        return Map.of(
+                "quarkus.rest-client.openclaw-gateway.url",
+                "http://localhost:" + server.port(),
+                "casehub.openclaw.gateway.bearer-token",
+                "test-bearer-token"
+        );
+    }
+
+    @Override
+    public void stop() {
+        if (server != null) server.stop();
+    }
+}
+```
+
+`QuarkusTestResourceLifecycleManager.start()` is called before Quarkus starts, so the config overrides are in place when the REST client is configured. Using `dynamicPort()` avoids port 9090 conflicts with other local services (Quarkus dev mode, Kubernetes sidecars, etc.).
+
+- [ ] **Step 3: Write the integration test**
 
 ```java
 // core/src/test/java/io/casehub/openclaw/client/OpenClawGatewayClientIT.java
 package io.casehub.openclaw.client;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.TestProfile;
-import io.quarkus.test.junit.QuarkusTestProfile;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.notContaining;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @QuarkusTest
-@TestProfile(OpenClawGatewayClientIT.Profile.class)
+@QuarkusTestResource(OpenClawWireMockResource.class)
 class OpenClawGatewayClientIT {
 
-    static WireMockServer wireMock;
-
-    @BeforeAll
-    static void startWireMock() {
-        wireMock = new WireMockServer(WireMockConfiguration.options().port(9090));
-        wireMock.start();
-    }
-
-    @AfterAll
-    static void stopWireMock() {
-        if (wireMock != null) wireMock.stop();
+    static WireMockServer wireMock() {
+        return OpenClawWireMockResource.INSTANCE;
     }
 
     @BeforeEach
     void resetWireMock() {
-        wireMock.resetAll();
+        wireMock().resetAll();
     }
 
     @Inject
@@ -705,28 +802,29 @@ class OpenClawGatewayClientIT {
 
     @Test
     void invokeAgent_sendsCorrectJsonBodyAndBearerToken() {
-        wireMock.stubFor(post(urlEqualTo("/hooks/agent"))
+        wireMock().stubFor(post(urlEqualTo("/hooks/agent"))
                 .willReturn(aResponse().withStatus(200)));
 
         hookClient.registerSession("finance-agent", "session-key-xyz",
                 "http://casehub.test/openclaw/delivery/channel/ch-001");
         hookClient.invoke("finance-agent", "Pull this month's transactions", null, 0);
 
-        wireMock.verify(postRequestedFor(urlEqualTo("/hooks/agent"))
-                .withHeader("Authorization", equalTo("Bearer test-bearer-token"))
-                .withHeader("Content-Type", equalTo("application/json"))
-                .withRequestBody(matchingJsonPath("$.agentId",       equalTo("finance-agent")))
-                .withRequestBody(matchingJsonPath("$.message",       equalTo("Pull this month's transactions")))
-                .withRequestBody(matchingJsonPath("$.deliver",       equalTo("webhook")))
-                .withRequestBody(matchingJsonPath("$.to",            equalTo("http://casehub.test/openclaw/delivery/channel/ch-001")))
-                .withRequestBody(matchingJsonPath("$.sessionName",   equalTo("session-key-xyz")))
-                .withRequestBody(matchingJsonPath("$.model",         equalTo("claude-haiku-4-5-20251001")))
-                .withRequestBody(matchingJsonPath("$.timeoutSeconds", equalTo("30"))));
+        wireMock().verify(postRequestedFor(urlEqualTo("/hooks/agent"))
+                .withHeader("Authorization",  equalTo("Bearer test-bearer-token"))
+                .withHeader("Content-Type",   equalTo("application/json"))
+                .withRequestBody(matchingJsonPath("$.agentId",     equalTo("finance-agent")))
+                .withRequestBody(matchingJsonPath("$.message",     equalTo("Pull this month's transactions")))
+                .withRequestBody(matchingJsonPath("$.deliver",     equalTo("webhook")))
+                .withRequestBody(matchingJsonPath("$.to",          equalTo("http://casehub.test/openclaw/delivery/channel/ch-001")))
+                .withRequestBody(matchingJsonPath("$.sessionName", equalTo("session-key-xyz")))
+                .withRequestBody(matchingJsonPath("$.model",       equalTo("claude-haiku-4-5-20251001")))
+                // integer field — use JSONPath predicate, not equalTo(String)
+                .withRequestBody(matchingJsonPath("$[?(@.timeoutSeconds == 30)]")));
     }
 
     @Test
     void invokeAgent_gatewayReturns500_throwsInvocationException() {
-        wireMock.stubFor(post(urlEqualTo("/hooks/agent"))
+        wireMock().stubFor(post(urlEqualTo("/hooks/agent"))
                 .willReturn(aResponse().withStatus(500)));
 
         hookClient.registerSession("finance-agent", "key", "http://webhook");
@@ -735,16 +833,29 @@ class OpenClawGatewayClientIT {
                 .hasMessageContaining("500");
     }
 
+    @Test
+    void invokeAgent_nullSessionKey_sessionNameOmittedFromJson() {
+        wireMock().stubFor(post(urlEqualTo("/hooks/agent"))
+                .willReturn(aResponse().withStatus(200)));
+
+        hookClient.registerSession("home-agent", null, "http://webhook/channel/2");
+        hookClient.invoke("home-agent", "run task", null, 0);
+
+        // @JsonInclude(NON_NULL) on sessionName — the key must be absent from the body
+        wireMock().verify(postRequestedFor(urlEqualTo("/hooks/agent"))
+                .withRequestBody(notContaining("\"sessionName\"")));
+    }
+
     // ── POST /hooks/wake ─────────────────────────────────────────────────────
 
     @Test
     void wakeAgent_sendsCorrectJsonBodyAndBearerToken() {
-        wireMock.stubFor(post(urlEqualTo("/hooks/wake"))
+        wireMock().stubFor(post(urlEqualTo("/hooks/wake"))
                 .willReturn(aResponse().withStatus(200)));
 
         hookClient.wake("home-agent", "Time to check the boiler");
 
-        wireMock.verify(postRequestedFor(urlEqualTo("/hooks/wake"))
+        wireMock().verify(postRequestedFor(urlEqualTo("/hooks/wake"))
                 .withHeader("Authorization", equalTo("Bearer test-bearer-token"))
                 .withRequestBody(matchingJsonPath("$.agentId", equalTo("home-agent")))
                 .withRequestBody(matchingJsonPath("$.message", equalTo("Time to check the boiler"))));
@@ -752,74 +863,35 @@ class OpenClawGatewayClientIT {
 
     @Test
     void wakeAgent_gatewayReturns500_throwsInvocationException() {
-        wireMock.stubFor(post(urlEqualTo("/hooks/wake"))
+        wireMock().stubFor(post(urlEqualTo("/hooks/wake"))
                 .willReturn(aResponse().withStatus(500)));
 
         assertThatThrownBy(() -> hookClient.wake("home-agent", "msg"))
                 .isInstanceOf(OpenClawInvocationException.class)
                 .hasMessageContaining("500");
     }
-
-    // ── sessionName omitted when null ─────────────────────────────────────────
-
-    @Test
-    void invokeAgent_sessionKeyIsNull_sessionNameOmittedFromJson() {
-        // Construct a session with null sessionKey to verify @JsonInclude(NON_NULL) works
-        wireMock.stubFor(post(urlEqualTo("/hooks/agent"))
-                .willReturn(aResponse().withStatus(200)));
-
-        // Directly register a session with null sessionKey
-        hookClient.registerSession("home-agent", null, "http://webhook/channel/2");
-        hookClient.invoke("home-agent", "run task", null, 0);
-
-        wireMock.verify(postRequestedFor(urlEqualTo("/hooks/agent"))
-                .withRequestBody(matchingJsonPath("$.agentId", equalTo("home-agent")))
-                // sessionName must be absent — WireMock's matchingJsonPath returns false for absent keys
-                .withRequestBody(matchingJsonPath("$[?(!@.sessionName)]")));
-    }
-
-    // ── Test profile ─────────────────────────────────────────────────────────
-
-    public static class Profile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            return Map.of(
-                    "quarkus.rest-client.openclaw-gateway.url", "http://localhost:9090",
-                    "casehub.openclaw.gateway.bearer-token", "test-bearer-token"
-            );
-        }
-    }
 }
 ```
 
-- [ ] **Step 2: Run test — confirm it fails (implementation not yet wired)**
-
-```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn --batch-mode test -pl core -am \
-  -Dtest=OpenClawGatewayClientIT -Dsurefire.failIfNoSpecifiedTests=false
-```
-
-Expected: test compile succeeds, tests fail (WireMock/CDI issues to confirm config is wired). If compilation fails, fix the issue before proceeding.
-
-- [ ] **Step 3: Run all core tests — confirm both test classes pass**
-
-All production code is already in place from Tasks 2–6. The integration test wires the CDI graph. Verify:
+- [ ] **Step 4: Run all core tests — confirm all pass**
 
 ```bash
 JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn --batch-mode test -pl core -am
 ```
 
-Expected: `BUILD SUCCESS` — `OpenClawHookClientTest` (11 tests) + `OpenClawGatewayClientIT` (5 tests) all green.
+Expected: `BUILD SUCCESS` — `OpenClawHookClientTest` (12 tests) + `OpenClawGatewayClientIT` (5 tests) all green.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git -C /Users/mdproctor/claude/casehub/openclaw add \
+  core/src/test/java/io/casehub/openclaw/client/OpenClawWireMockResource.java \
   core/src/test/java/io/casehub/openclaw/client/OpenClawGatewayClientIT.java \
   core/src/test/resources/application.properties
 git -C /Users/mdproctor/claude/casehub/openclaw commit -m "test(core): add WireMock integration test for OpenClawGatewayClient
 
-Asserts: correct JSON body, Authorization header, sessionName NON_NULL omission,
+Dynamic port via QuarkusTestResourceLifecycleManager. Asserts: JSON body shape,
+Authorization header, timeoutSeconds as integer, sessionName NON_NULL omission,
 HTTP 5xx -> OpenClawInvocationException.
 
 Refs #2"
@@ -839,14 +911,16 @@ Expected: `BUILD SUCCESS` — all three modules (core, casehub, app) compile and
 
 - [ ] **Step 2: Verify no IntelliJ errors**
 
+Run `ide_diagnostics` (errors only) on each new file:
 ```
-ide_diagnostics on each new file:
-  core/src/main/java/io/casehub/openclaw/client/OpenClawHookClient.java
-  core/src/main/java/io/casehub/openclaw/client/OpenClawGatewayClient.java
-  core/src/main/java/io/casehub/openclaw/client/BearerTokenRequestFilter.java
+core/src/main/java/io/casehub/openclaw/client/OpenClawHookClient.java
+core/src/main/java/io/casehub/openclaw/client/OpenClawGatewayClient.java
+core/src/main/java/io/casehub/openclaw/client/BearerTokenRequestFilter.java
+core/src/main/java/io/casehub/openclaw/client/AgentInvocationRequest.java
+core/src/main/java/io/casehub/openclaw/client/OpenClawClientConfig.java
 ```
 
-Expected: zero errors.
+Expected: zero errors on all files.
 
 ---
 
@@ -859,22 +933,25 @@ Expected: zero errors.
 | `OpenClawGatewayClient` `@RegisterRestClient` for `/hooks/agent` and `/hooks/wake` | Task 5 |
 | `BearerTokenRequestFilter` via `@RegisterProvider` | Task 5 |
 | `OpenClawHookClient` session registry (`registerSession`, `deregisterSession`, `findSession`) | Task 6 |
-| `invoke()` — session lookup, default model/timeout, error on missing session, error on 5xx | Task 6 |
-| `wake()` — no session required, error on 5xx | Task 6 |
-| `AgentInvocationRequest` with `sessionName @JsonInclude(NON_NULL)` | Task 4 |
+| `invoke()` — session lookup, default model/timeout, blank model defaulting, error on missing session, error on 5xx, `Response.close()` | Task 6 |
+| `wake()` — no session required, error on 5xx, `Response.close()` | Task 6 |
+| `AgentInvocationRequest` with `sessionName` and `wakeMode` as `@JsonInclude(NON_NULL)` | Task 4 |
+| `AgentInvocationRequest.forWebhook()` factory — enforce `deliver=webhook` | Task 4 |
 | `AgentWakeRequest` | Task 4 |
-| `OpenClawClientConfig` `@ConfigMapping` | Task 3 |
+| `OpenClawClientConfig` `@ConfigMapping` (no redundant `@WithName`) | Task 3 |
 | `OpenClawInvocationException` unchecked | Task 2 |
-| Integration test: mock OpenClaw Gateway, assert request shape | Task 7 |
-| Integration test: assert `Authorization: Bearer` header | Task 7 |
+| Integration test: assert request body shape, `Authorization: Bearer` header | Task 7 |
+| Integration test: assert `timeoutSeconds` as integer JSONPath predicate | Task 7 |
 | Integration test: assert `sessionName` omitted when null | Task 7 |
+| REST client connect/read timeout config | Task 7 (application.properties) |
+| Dynamic WireMock port via `QuarkusTestResourceLifecycleManager` | Task 7 |
 
 All spec requirements covered. ✓
 
-**Placeholder scan:** No TBDs, no "similar to previous" shortcuts, no missing code blocks. ✓
+**Known deferred items (not in plan scope):**
+- `sessionName` JSON field name (`sessionName` vs `session_name`) — documented in `forWebhook()` Javadoc; verify against live API before casehub/ SPI work begins
+- `wakeMode` values — documented as "null = OpenClaw default"; verify against live API
+- `/hooks/wake` body schema — documented as assumed `{agentId, message}`; verify against live API
+- Concurrent same-agentId workers — last-write-wins; full fix requires workerId in WorkResult (upstream engine enhancement)
 
-**Type consistency:**
-- `AgentInvocationRequest` used in Task 4 (definition), Task 6 (captured in unit tests), Task 7 (verified via WireMock). Fields: `agentId`, `message`, `deliver`, `to`, `model`, `timeoutSeconds`, `sessionName` — consistent throughout.
-- `AgentWakeRequest` used in Task 4 (definition), Task 6, Task 7. Fields: `agentId`, `message` — consistent.
-- `OpenClawSession` record fields: `agentId`, `sessionKey`, `webhookUrl` — accessed consistently.
-- `OpenClawHookClient` methods: `registerSession(agentId, sessionKey, webhookUrl)`, `deregisterSession(agentId)`, `findSession(agentId)`, `invoke(agentId, message, model, timeoutSeconds)`, `wake(agentId, message)` — consistent across definition (Task 6) and integration test (Task 7). ✓
+**Type consistency:** `AgentInvocationRequest.forWebhook()` used in Task 6 (`OpenClawHookClient`) with parameters `(message, agentId, to, model, timeoutSeconds, sessionName, wakeMode)` — consistent with definition in Task 4. All 8 record components named identically across test assertions and production code. ✓
