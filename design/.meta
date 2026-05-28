@@ -1,8 +1,0 @@
-branch: issue-003-channel-context-window
-project-sha: 587adc997d36202025c7a1b539a639e4fb10f1fd
-date: 2026-05-26
-issue: 3
-issue-repo: casehubio/openclaw
-flyway-next-v: none
-design-repo: workspace
-design-section-hashes:
