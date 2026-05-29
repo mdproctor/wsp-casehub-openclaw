@@ -35,6 +35,10 @@ query(agentId) → joins agentId→caseId→channelIds internally
 
 No coordination between SPIs. No shared registry. No race. This also enables a net improvement: messages that arrive on a channel after `bindChannel()` but before `bindAgent()` are captured and available on the first query.
 
+**Residual micro-race (within design tolerance):** `provision()` calls `registry.register()` then `service.bindAgent()` — two sequential writes. If a COMMAND arrives between them, `ChannelBackend.post()` routes correctly (registry has the agentId) but `service.query()` returns `noAssociation()` for that agent turn's context injection. One missed context injection window. This is within the "intelligence, not correctness" design contract and does not require mitigation.
+
+**Parallel agentToCase maps:** `ChannelContextWindowService` maintains its own internal `agentToCase` map (for query-time joining); `OpenClawAgentRegistry` maintains a separate `agentToCase` map (for routing). Module boundaries prevent core/ from depending on casehub/ — the duplication is the price of module independence. Cleanup must be applied symmetrically to both maps (see §4.5 and §5).
+
 ---
 
 ## 3. Component Overview
@@ -60,7 +64,7 @@ OpenClawWorkerProvisioner     → ChannelContextWindowService, OpenClawAgentRegi
 OpenClawCaseChannelProvider   → ChannelContextWindowService, ChannelService (Qhorus), MessageService (Qhorus)
 OpenClawChannelBackend        → OpenClawAgentRegistry, OpenClawHookClient, OpenClawConfig, ChannelGateway (Qhorus)
 OpenClawWorkerStatusListener  → OpenClawAgentRegistry
-OpenClawDeliveryResource      → ChannelService (Qhorus), MessageService (Qhorus), WorkerStatusListener
+OpenClawDeliveryResource      → ChannelService (Qhorus), MessageService (Qhorus)
 ```
 
 ---
@@ -104,7 +108,25 @@ Two-level join:
 2. `channelIds = caseChannels.getOrDefault(caseId, Set.of())` → empty → empty window (not `noAssociation()`)
 3. Read from buffers for each channelId (unchanged)
 
-### 4.5 `agentChannels` removal
+**Transient state note:** If `bindAgent()` is called before any `bindChannel()` (agent provisioned before channels open), `query()` returns agent-associated with an empty channel set. The Python SDK's idle-notice logic fires when association exists but no messages are found. `lastChannelActivity` defaults to `Instant.EPOCH` — far beyond any TTL — so the SDK would inject "No channel activity in the last N minutes." This is a misleading signal (the agent isn't idle; it has no channels yet). In the normal engine flow (`CaseStartedEventHandler` opens channels before worker dispatch), this transient state lasts microseconds. It is documented here and in the implementation comment on `bindAgent()`, but does not require mitigation.
+
+### 4.5 Cleanup — `unbindAgent(String agentId)`
+
+Add:
+
+```java
+void unbindAgent(String agentId)
+```
+
+Removes the `agentId` entry from `agentToCase`. Does NOT cascade to `caseChannels` — the case may continue to receive messages for a short period after agent deregistration, and ring buffers are already TTL-evicted by the existing `evictExpired()` scheduler. Retaining the `caseChannels` entry until TTL expiry is correct and avoids lifecycle complexity.
+
+Called from `OpenClawWorkerStatusListener.onWorkerCompleted()` — the engine calls this via `WorkflowExecutionCompletedHandler` on the `WORKER_EXECUTION_FINISHED` event bus address, which fires when `QhorusMessageSignalBridge` delivers the DONE signal to `CaseHubRuntime.signal()`. Cleanup is therefore automatic and does not require the delivery resource to call the listener directly.
+
+### 4.6 Startup recovery note
+
+`agentToCase` and `caseChannels` are in-memory — they are empty after a restart. On restart, ring buffers are also empty (no messages persisted). A restarted service returns `noAssociation()` for all agents until they are re-provisioned and their channels re-opened. This is within the design contract: the correctness layer (Qhorus) is unaffected; the intelligence layer (ChannelContextWindow) fails open on restart.
+
+### 4.7 `agentChannels` removal
 
 The existing `agentChannels: ConcurrentHashMap<String, Set<UUID>>` field (used by the old `associate()`) is removed.
 
@@ -127,9 +149,11 @@ Optional<String> findAgentId(UUID caseId)       // for ChannelBackend routing
 Optional<String> findSessionKey(String agentId) // for invoke() calls
 ```
 
-Internal: `ConcurrentHashMap<String, UUID> agentToCase` and `ConcurrentHashMap<UUID, String> caseToAgent` and `ConcurrentHashMap<String, String> agentToSessionKey`. All three updated atomically in `register()` and `deregister()`.
+Internal: `ConcurrentHashMap<String, UUID> agentToCase`, `ConcurrentHashMap<UUID, String> caseToAgent`, and `ConcurrentHashMap<String, String> agentToSessionKey`. All three are updated sequentially (not atomically — `ConcurrentHashMap` provides no cross-map transaction). A reader between the first and last write sees partial state; this window is negligible for the MVP single-agent-per-case constraint below.
 
-This registry is separate from `ChannelContextWindowService`'s internal `agentToCase` map. Both maintain a copy of the agentId↔caseId relation for their own consumers. This duplication is acceptable: the service owns the query join; the registry owns routing concerns.
+**MVP constraint — one OpenClaw agent per case:** `caseToAgent` is 1:1. If the engine provisions two agents for the same case, the second `register()` silently overwrites the first — from that point, `findAgentId(caseId)` returns only one agent. This failure is silent. For MVP, exactly one OpenClaw agent per case is assumed. If violated at config time, the provisioner MUST warn loudly. Multi-agent per case support is deferred (openclaw#12 scope).
+
+This registry is separate from `ChannelContextWindowService`'s internal `agentToCase` map. Both maintain the agentId↔caseId relation for their own consumers — unavoidable due to module boundaries (core/ cannot depend on casehub/). Cleanup must be applied symmetrically: `registry.deregister(agentId)` and `service.unbindAgent(agentId)` must both be called from `onWorkerCompleted()`.
 
 ---
 
@@ -139,10 +163,16 @@ Implements blocking `WorkerProvisioner` (not reactive — nothing in `provision(
 
 ### 6.1 `provision(Set<String> capabilities, ProvisionContext context)`
 
-1. Resolve `agentId` from `capabilities` via config (see §10)
+1. Resolve `agentId` from `capabilities` via config (capability matching algorithm — see below)
 2. `registry.register(agentId, context.caseId(), sessionKey)`
 3. `service.bindAgent(agentId, context.caseId())`
 4. Return `Worker(agentId, capabilityList, ctx -> Map.of())`
+
+**Capability matching algorithm:**
+- **Subset match:** an agent is a candidate if the requested capability set is a subset of (or equal to) the agent's configured capabilities. The agent must be able to handle ALL requested capabilities.
+- **First match wins:** if multiple configured agents are candidates, select the first match in config-iteration order (which is alphabetical by agentId key). Log a warning — multiple agents covering the same capabilities is a misconfiguration.
+- **No match:** throw `ProvisioningException("No OpenClaw agent configured for capabilities: " + capabilities)`.
+- **Spanning agents:** if requested capabilities cannot be satisfied by any single agent (e.g. requesting `{finance, code-review}` when no agent has both), the no-match case fires. The engine typically provisions one capability per PlanItem binding, so this is an edge case that requires misconfigured YAML to trigger.
 
 The `Worker` uses a no-op function holder — OpenClaw is invoked via `ChannelBackend.post()`, not the worker function. The no-op satisfies `Worker.build()`'s non-null requirement.
 
@@ -193,6 +223,8 @@ No-op. Qhorus channels are persistent.
 
 `channelService.findByNamePrefix("case-{caseId}/")`
 
+`findByNamePrefix(String prefix)` is confirmed available on `ChannelService` (and `ReactiveChannelService`) — verified at `ChannelService.java:97`. It emits `LIKE 'prefix%' ESCAPE '!'` (metachar-safe, index-eligible).
+
 ---
 
 ## 8. OpenClawChannelBackend (casehub/)
@@ -232,7 +264,7 @@ Both no-op. Channel lifecycle is managed by `OpenClawCaseChannelProvider`. Regis
 2. `agentId = registry.findAgentId(caseId)` → not found → log debug, return
 3. `sessionKey = registry.findSessionKey(agentId).orElseThrow()` (should always be present if agentId found)
 4. `webhookUrl = config.deliveryUrlTemplate().replace("{channelId}", channel.id().toString())`
-5. `hookClient.registerSession(agentId, sessionKey, webhookUrl)` — idempotent
+5. `hookClient.registerSession(agentId, sessionKey, webhookUrl)` — last-write-wins (not idempotent in the traditional sense). Concurrent COMMANDs for the same agent on different channels overwrite each other's `webhookUrl` in the `OpenClawSession` registry. This is safe because the `webhookUrl` is embedded in the `POST /hooks/agent` request body at `invoke()` time — OpenClaw uses the request-body URL for delivery, not a server-side lookup. Concurrent overwrites cannot corrupt in-flight deliveries.
 6. `hookClient.invoke(agentId, message.content(), config.defaultModel(), config.defaultTimeout())`
 
 **Non-throwing contract:** `OpenClawInvocationException` is caught, logged, and swallowed. `ChannelGateway.fanOut()` is non-fatal — propagated exceptions abort the entire fan-out.
@@ -253,14 +285,22 @@ void onWorkerStarted(String workerId, Map<String,String> sessionMeta):
 
 void onWorkerCompleted(String workerId, WorkResult result):
   log.infof("OpenClaw agent completed: agentId=%s status=%s", workerId, result.status())
-  registry.deregister(workerId)
+  registry.deregister(workerId)       // cleans up agentToCase/caseToAgent/sessionKey maps
+  service.unbindAgent(workerId)       // cleans up agentToCase in ChannelContextWindowService
 
 void onWorkerStalled(String workerId):
   log.warnf("OpenClaw agent stalled: agentId=%s", workerId)
   events.fire(new OpenClawWorkerStalledEvent(workerId))
+  // Stalled agents remain registered — they continue to receive COMMAND invocations
+  // until an observer explicitly deregisters them. The platform's Watchdog handles the
+  // resulting hung case step by firing timeout recovery. Deregistering here would prevent
+  // retry attempts; leaving it registered lets the Watchdog and engine resilience module
+  // drive recovery policy.
 ```
 
-`OpenClawWorkerStalledEvent` is a public record nested in the listener (matching Claudony's pattern). Observers can react — a future health monitor or alerting component can subscribe without modifying the listener.
+`OpenClawWorkerStalledEvent` is a public record nested in the listener (matching Claudony's pattern). A future health monitor or alerting component can subscribe without modifying the listener.
+
+**Why the engine calls this listener:** `WorkflowExecutionCompletedHandler` consumes the `WORKER_EXECUTION_FINISHED` Vert.x event bus address and calls `workerStatusListener.onWorkerCompleted()`. This event is published by `CaseHubRuntime.signal()`, which is called by `QhorusMessageSignalBridge` when a DONE message arrives on the case channel. The listener is therefore called automatically via the standard engine path — the delivery resource does not need to call it directly.
 
 ---
 
@@ -296,7 +336,9 @@ Both fields may need renaming to snake_case (`agent_id`, `output`) depending on 
    - `content` = `payload.output()`
    - `actorType` = `ActorType.AGENT`
 3. On dispatch success → 200 OK
-4. On dispatch failure → log error, still return 200 (OpenClaw must not retry due to our processing errors)
+4. On dispatch failure → log error, still return 200
+
+**Failure consequence:** A failed dispatch means the DONE message never reaches Qhorus. `QhorusMessageSignalBridge` never fires. `WorkflowExecutionCompletedHandler` is never called. The case step hangs indefinitely. The platform's Watchdog eventually fires and drives recovery via the engine resilience module. This is the deliberate Phase 1 trade-off: OpenClaw's retry contract on non-2xx webhook responses is unverified (openclaw#11). Returning 5xx risks retry storms if OpenClaw retries aggressively. Once openclaw#11 resolves the retry contract, the failure response can be changed to 5xx to give OpenClaw an explicit retry signal.
 
 ### 10.4 Auth
 
@@ -306,25 +348,54 @@ None. Follows the gateway topology: auth is Claudony's concern. The delivery end
 
 ## 11. Configuration (app/src/main/resources/application.properties)
 
-### 11.1 Agent capability mapping
+### 11.1 `@ConfigMapping` interface
 
-```properties
-# Map agent IDs to their capability strings
-casehub.openclaw.agents.finance-agent.capabilities=finance,banking
-casehub.openclaw.agents.finance-agent.session-key=finance-agent
-casehub.openclaw.agents.code-review-agent.capabilities=code-review,security-review
-casehub.openclaw.agents.code-review-agent.session-key=code-review-agent
+```java
+@ConfigMapping(prefix = "casehub.openclaw")
+public interface OpenClawConfig {
+    Map<String, AgentConfig> agents();  // keyed by agentId (e.g. "finance-agent")
+    AgentDefaults agent();
+    DeliveryConfig delivery();
+
+    interface AgentConfig {
+        List<String> capabilities();    // e.g. ["finance", "banking"]
+        String sessionKey();            // OpenClaw session name — may differ from map key
+    }
+
+    interface AgentDefaults {
+        String defaultModel();          // e.g. "claude-opus-4-5"
+        int defaultTimeoutSeconds();    // e.g. 120
+    }
+
+    interface DeliveryConfig {
+        String urlTemplate();           // e.g. "http://host/openclaw/delivery/channel/{channelId}"
+    }
+}
 ```
 
-Resolved via `@ConfigMapping(prefix = "casehub.openclaw")`. The `agents` key is a `Map<String, AgentConfig>` where each value has `capabilities: List<String>` and `sessionKey: String`.
+### 11.2 Agent capability mapping (example properties)
 
-### 11.2 Delivery URL template
+```properties
+# finance-agent: session name matches the config key (common case)
+casehub.openclaw.agents.finance-agent.capabilities=finance,banking
+casehub.openclaw.agents.finance-agent.session-key=finance-agent
+
+# code-review-agent: session name differs from config key (uncommon but valid)
+casehub.openclaw.agents.code-review-agent.capabilities=code-review,security-review
+casehub.openclaw.agents.code-review-agent.session-key=cr-agent-main
+```
+
+`session-key` is an explicit property because the OpenClaw session name (the Python SDK concept, passed as `sessionName` in `/hooks/agent`) may differ from the config map key. The example above shows this: `code-review-agent` maps to session name `cr-agent-main`.
+
+### 11.3 Delivery URL template
 
 ```properties
 casehub.openclaw.delivery.url-template=http://localhost:8080/openclaw/delivery/channel/{channelId}
+casehub.openclaw.agent.default-model=claude-opus-4-5
+casehub.openclaw.agent.default-timeout-seconds=120
 ```
 
-### 11.3 CDI collision fix (GE-20260428-9311f8)
+### 11.4 CDI collision fix (GE-20260428-9311f8)
 
 Required in `app/src/main/resources/application.properties`:
 
@@ -340,7 +411,9 @@ quarkus.arc.exclude-types=\
   io.casehub.engine.internal.worker.NoOpReactiveCaseChannelProvider
 ```
 
-### 11.4 pom.xml changes (casehub/)
+The exclusion list was generated for casehub-engine 0.2-SNAPSHOT (Quarkus 3.32.2). If the engine adds new no-op implementations in future versions, the startup CDI test (`@QuarkusTest` startup) will catch the new `AmbiguousResolutionException` with a clear message.
+
+### 11.5 pom.xml changes (casehub/)
 
 Remove `<scope>provided</scope>` from `casehub-engine` and `casehub-qhorus` — actual SPI beans are now present.
 
@@ -354,6 +427,8 @@ Remove `<scope>provided</scope>` from `casehub-engine` and `casehub-qhorus` — 
 - `bindChannel` before `bindAgent` → messages captured during the window, returned once agent binds
 - `bindAgent` without `bindChannel` → `query()` returns empty window (not `noAssociation()`)
 - Neither bind → `query()` returns `noAssociation()`
+- `unbindAgent()` → subsequent `query()` returns `noAssociation()`; `caseChannels` entry retained (ring buffer still writable for in-flight messages)
+- `bindChannel()` twice for same (caseId, channelId) → idempotent (Set.add + putIfAbsent)
 - Overflow eviction — `lastEvictionWindowSeq` set correctly (unchanged behaviour)
 - TTL expiry — unchanged behaviour
 - `evictExpired()` — unchanged behaviour
@@ -385,8 +460,8 @@ Remove `<scope>provided</scope>` from `casehub-engine` and `casehub-qhorus` — 
 - `extractCaseId` with non-case channel name → null (no-op)
 
 **OpenClawWorkerStatusListenerTest:**
-- `onWorkerCompleted()` → calls `registry.deregister(workerId)`
-- `onWorkerStalled()` → fires `OpenClawWorkerStalledEvent`
+- `onWorkerCompleted()` → calls `registry.deregister(workerId)` AND `service.unbindAgent(workerId)`
+- `onWorkerStalled()` → fires `OpenClawWorkerStalledEvent`; does NOT call `registry.deregister()` (explicit by design)
 
 **OpenClawAgentRegistryTest:**
 - `register()` → `findAgentId(caseId)` and `findSessionKey(agentId)` return correct values
@@ -449,3 +524,6 @@ OpenClaw completes, POSTs result to webhook URL
 - Channel layout consolidation with Claudony (parent#93)
 - `WorkerContextProvider` SPI — no OpenClaw-specific lineage context needed at this stage
 - Heartbeat mode — not applicable for in-case direct call provisioning
+- Multi-agent per case — `caseToAgent` is 1:1; multi-agent support requires a redesign of the registry (see §5 constraint)
+- `caseChannels` map cleanup on case close — `unbindAgent()` removes the agent association but retains the `caseChannels` entry; TTL eviction handles ring buffer cleanup. A dedicated `closeCase(UUID caseId)` method is not implemented in MVP; add as openclaw#N if memory growth becomes observable.
+- Startup recovery for context window — after restart, all in-memory state is empty; agents must be re-provisioned before context injection resumes
