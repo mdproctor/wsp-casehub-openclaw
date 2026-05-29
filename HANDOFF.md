@@ -1,52 +1,43 @@
-# Handoff — 2026-05-28
+# Handoff — 2026-05-29
 
-**Head commit (project):** 5472692 — chore: branch closed (Epic 3 merged to main)
-**Head commit (workspace):** c93a51d — docs: add blog entry 2026-05-28
+**Head commit (project):** df7a213 — docs: promote Epic 4 design spec from workspace
+**Head commit (workspace):** 54bc581 — docs(epic4): apply design journal + archive plan
 
 ## What Changed This Session
 
-Epic 3 (ChannelContextWindow service) designed, implemented, reviewed, and merged.
-Ring buffer in `core/`, `MessageObserver` SPI impl in `casehub/`, REST endpoint +
-`EvictionScheduler` in `app/`. 59 tests across 4 test classes. Two spec compliance
-passes, one code quality pass (caught `ConcurrentHashMap` stored-value race).
-CLAUDE.md synced; design journal written; blog entry published.
+Epic 4 (CaseHub SPI implementations) designed, implemented, reviewed, and closed.
+`ChannelContextWindowService` refactored to two-phase bind API (`bindAgent`/`bindChannel`/`unbindAgent`).
+5 new SPI beans in `casehub/`, delivery webhook in `app/`, 108 tests total.
+Key discovery: `casehub-engine-api` not `casehub-engine` in the casehub module — full runtime pulls in 31+ unsatisfied CDI beans.
+PR #14 opened to casehubio/openclaw. Both repos on `main`. Branch marked closed.
 
-`finishing-a-development-branch` skill removed from superpowers — it's the wrong
-terminal step for casehub projects (single-repo only, misses `.meta` cleanup and
-artifact promotion). Always use `work-end` instead.
-
-5 forage entries attempted in parallel — all failed due to concurrent garden commits.
-Re-capture next session before the context is gone.
+6 garden entries submitted, 1 protocol captured (PP-20260529-ce2de0: engine-api scope rule).
+DESIGN.md created from journal (3 sections: Architecture, Module Structure, Key Integration Patterns).
 
 ## Immediate Next Step
 
-`work-start` referencing issue #4 to begin Epic 4: CaseHub SPI implementations
-(WorkerProvisioner, ChannelBackend, CaseChannelProvider, WorkerStatusListener).
+`work-start` referencing issue #5 to begin Epic 5: Python SDK component (`before_prompt_build` hook).
 
 ## What's Left
 
-- Re-capture 5 forage entries (all lost to garden write collision this session):
-  1. `quarkus-junit5-mockito` → `quarkus-junit-mockito` rename (Quarkus 3.31+)
-  2. `ConcurrentHashMap.merge()` bin-lock safe; stored value iteration is not
-  3. `EnumSource.Mode.EXCLUDE` for future-proof enum parameterised tests
-  4. Package-private `@ConfigProperty` fields enable pure JUnit 5 CDI bean tests
-  5. `@Scheduled(every="...")` accepts ISO-8601 duration from config properties
-- casehubio/parent#82 — sync `casehub-openclaw.md` deep-dive (in-memory vs persisted, current state)
-- Verify `sessionName` JSON field name (camelCase vs snake_case) against live OpenClaw API before Epic 4
+- openclaw#11 — verify OpenClaw webhook payload field names (`agentId`, `output` — camelCase vs snake_case) against live API before production use · S · Low
+- casehubio/parent#95 — sync `casehub-openclaw.md` deep-dive for Epic 4 (Epic 4 status, engine-api dep) · S · Low
+- openclaw#13 — `ChannelContextWindowService.closeCase(caseId)` cleanup for `caseChannels` map · S · Low
+- Re-capture 5 forage entries from Epic 3 session that were lost to garden write collision (already in this session's 6 — confirmed captured) · ✅ Done
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| **#4** | **Epic 4: CaseHub SPI implementations** | L | High | WorkerProvisioner must call `associate()` — see issue #4 comment; verify sessionName first |
-| #5 | Epic 5: Python SDK component | M | Med | `before_prompt_build` hook |
+| **#5** | **Epic 5: Python SDK component** | M | Med | `before_prompt_build` hook; calls `GET /channel-context/{agentId}?since={windowSeq}`; `appendSystemContext` for compaction safety |
 | #6 | Epic 6: Bidirectional wiring end-to-end | M | High | |
 | #7 | Epic 7: casehub OpenClaw skill pack | M | Med | |
-| #8 | Epic 8: Speech act classification | M | High | Research-heavy |
+| #8 | Epic 8: Speech act classification Phase 2–3 | M | High | openclaw#10 |
 
 ## References
 
-- Design spec: `proj/docs/specs/2026-05-27-channel-context-window-design.md`
+- Design spec: `proj/docs/specs/2026-05-29-epic4-casehub-spi-design.md`
+- Design journal merged: `DESIGN.md` (workspace root)
 - Integration spec: `proj/docs/specs/openclaw-integration.md`
-- Blog: `blog/2026-05-28-mdp01-channel-context-window.md`
-- Design journal: `design/JOURNAL.md`
+- Blog: `blog/2026-05-29-mdp01-casehub-spi-implementations.md`
+- PR: casehubio/openclaw#14
