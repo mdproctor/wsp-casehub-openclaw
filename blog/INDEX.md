@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-05-31-mdp01-openclaw-skill-pack.md](2026-05-31-mdp01-openclaw-skill-pack.md) | 2026-05-31 | Epic 7: Quarkus MCP, TypeScript plugin hooks, global skill; reject() self-commit bug; recursive auto-commit fix; 120 tests green |
 | [2026-05-30-mdp01-bidirectional-wiring-oversight-gate.md](2026-05-30-mdp01-bidirectional-wiring-oversight-gate.md) | 2026-05-30 | Epic 6: ActionRiskClassifier pushed to engine-api; CommitmentStore over in-memory map; MessageDispatch builder constraint; BidirectionalWiringIT |
 | [2026-05-29-mdp02-the-python-hook-that-doesnt-exist.md](2026-05-29-mdp02-the-python-hook-that-doesnt-exist.md) | 2026-05-29 | OpenClaw before_prompt_build is TypeScript-only; cursor bounded by agent not session; five injection cases; three pre-merge fixes |
 | [2026-05-29-mdp01-casehub-spi-implementations.md](2026-05-29-mdp01-casehub-spi-implementations.md) | 2026-05-29 | Why associate() was the wrong API; two-phase bind; casehub-engine vs casehub-engine-api; orElseThrow inside fanOut |
