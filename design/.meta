@@ -1,0 +1,8 @@
+branch: issue-15-17-11-batch-cleanup
+project-sha: 48e190c
+date: 2026-06-03
+issue: 15
+issue-repo: casehubio/openclaw
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
