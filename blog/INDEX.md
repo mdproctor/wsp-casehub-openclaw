@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-04-mdp01-layer3-lifecycle-skills-done-dispatch.md](2026-06-04-mdp01-layer3-lifecycle-skills-done-dispatch.md) | 2026-06-04 | Qhorus-native DONE dispatch; casehub_delegate as dedicated tool; @Transactional + @Tool condition; two STATUS fallback paths; #23, #24, #16 shipped |
 | [2026-06-03-mdp01-transactional-atomicity-cleanup.md](2026-06-03-mdp01-transactional-atomicity-cleanup.md) | 2026-06-03 | @Transactional catch block trap; OversightGateDispatcher extraction; GATE_SENDER audit trail fix; S/XS backlog items closed |
 | [2026-06-02-mdp01-arc42stories-integration-tier.md](2026-06-02-mdp01-arc42stories-integration-tier.md) | 2026-06-02 | ARC42STORIES.MD bootstrapped; custom L1–L6 module taxonomy; stale LAYER-LOG corrected; quality sweep caught two closed parent issues |
 | [2026-05-31-mdp01-openclaw-skill-pack.md](2026-05-31-mdp01-openclaw-skill-pack.md) | 2026-05-31 | Epic 7: Quarkus MCP, TypeScript plugin hooks, global skill; reject() self-commit bug; recursive auto-commit fix; 120 tests green |
