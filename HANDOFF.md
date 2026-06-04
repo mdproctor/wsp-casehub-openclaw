@@ -1,5 +1,7 @@
 # Handoff — 2026-06-04
 
+*Updated: openclaw#9 closed — removed from backlog. parent#147 closed — removed from backlog.*
+
 **Head commit (project):** b10e665 — docs(claude-md): add casehub_block, casehub_delegate tools and Layer 3 lifecycle skills
 **Head commit (workspace):** beca6f2 — archive(issue-23-layer3-lifecycle-skills): move plans to attic
 
@@ -17,7 +19,6 @@ Speech act classification Phase 2/3 (openclaw#10) is the next meaningful M-scale
 
 - `openclaw#20` — store `channelId` on Commitment entity to survive Quarkus restart · S · Med
 - `openclaw#22` — @QuarkusTest atomicity regression test for OversightGateDispatcher · S · Low
-- `parent#147` — update casehub-openclaw.md deep-dive for Epic 7 MCP layer (peer repo — open issue only)
 - `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation workaround · S · Low
 
 ## What's Next
@@ -26,7 +27,6 @@ Speech act classification Phase 2/3 (openclaw#10) is the next meaningful M-scale
 |---|-------------|-------|------------|-------|
 | **#8** | **Epic 8: Speech act classification Phase 2/3** | M | High | openclaw#10 — SpeechActClassifier prefix detection + structured JSON; no longer gated (openclaw#16 resolved) |
 | #22 | @QuarkusTest atomicity regression for OversightGateDispatcher | S | Low | No gates — pick up anytime |
-| #9 | Wire ActionRiskClassifier to engine-api SPI | S | Low | Gates on casehubio/engine#402 shipping |
 | Phase 3 | Multi-agent coordination skills (casehub-broadcast, casehub-vote, casehub-handoff) | L | High | Needs Phase 2 speech act work first |
 
 ## References
