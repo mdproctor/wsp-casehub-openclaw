@@ -1,0 +1,9 @@
+branch: issue-10-c8-speech-act
+project-sha: b10e665dbf10b3dcfee406785882a1aedadcfd65
+date: 2026-06-04
+issue: 10
+issue-repo: casehubio/openclaw
+covers: 10,8
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
