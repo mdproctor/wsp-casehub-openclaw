@@ -1,37 +1,38 @@
-# Handoff — 2026-06-04
+# Handoff — 2026-06-05
 
-*Updated: openclaw#9 closed — removed from backlog. parent#147 closed — removed from backlog.*
-
-**Head commit (project):** b10e665 — docs(claude-md): add casehub_block, casehub_delegate tools and Layer 3 lifecycle skills
-**Head commit (workspace):** beca6f2 — archive(issue-23-layer3-lifecycle-skills): move plans to attic
+**Head commit (project):** 0e35191 — docs: sync ARC42STORIES.MD — C8 complete, stale scan at session wrap
+**Head commit (workspace):** 3d0c13b — archive(issue-10-c8-speech-act): move plans to attic
 
 ## What Changed This Session
 
-Phase 2 lifecycle skills shipped. Three new MCP tools: `casehub_block` (@Transactional direct expiresAt mutation — safe because no try/catch in block(); deferred to qhorus#250 for proper extendDeadline()), `casehub_delegate` (HANDOFF with required toAgent — makes delegation machine-readable vs escalation). Three new SKILL.md files: casehub-reject, casehub-block, casehub-delegate. Fixed openclaw#16: OversightGateService.evaluate() now dispatches DONE (not STATUS) via commitmentStore.findOpenByObligor() — Qhorus-native, restart-resilient. ActionRiskClassifier javadoc confirms contract identical to engine#402. Garden: 1 entry (GE-20260604-d08c9f — @Transactional + @Tool technique). PR: casehubio/openclaw#26.
+C8 (speech act classification Phase 2+3) shipped. Three-tier detection pipeline: JSON envelope → bracket prefix → STATUS fallback. `SpeechActDetection` public utility, `SpeechActResult(type, content, tier)` record, `DetectionTier` enum. `OversightGateService` uses stripped content for dispatch and raw output for COMMAND audit record. `casehub-global` SKILL.md gains case step response protocol (agents must prefix responses). ADR-0003: STATUS fallback chosen over DONE — false completion is invisible, stuck commitment is recoverable. Deployment note in spec: code + skill updates must ship atomically.
 
-Closed: #23 (lifecycle skills), #24 (ActionRiskClassifier), #16 (DONE dispatch). Filed: qhorus#250 (CommitmentService.extendDeadline).
+Closed: #10 (speech act Phase 2/3), #8 (Epic 8). Filed: openclaw#27 (NliSpeechActClassifier, future), openclaw#28 (inject protocol via ChannelBackend), parent#172 (cross-dep table), parent#175 (audit-content-split protocol). ARC42STORIES.MD synced — C8 ✅, journey complete (C1–C8).
 
 ## Immediate Next Step
 
-Speech act classification Phase 2/3 (openclaw#10) is the next meaningful M-scale work. Or pick up #22 (QuarkusTest regression for OversightGateDispatcher — S · Low, no gates). Run `/work` for either.
+All epics complete. Pick up any What's Left item below, or run `/work` to start a new issue.
 
 ## What's Left
 
-- `openclaw#20` — store `channelId` on Commitment entity to survive Quarkus restart · S · Med
-- `openclaw#22` — @QuarkusTest atomicity regression test for OversightGateDispatcher · S · Low
-- `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation workaround · S · Low
+- `openclaw#20` — store `channelId` on Commitment entity to survive restart · S · Med
+- `openclaw#22` — @QuarkusTest atomicity regression for OversightGateDispatcher · S · Low
+- `openclaw#25` ⚡ — finalize oversight channel `allowedTypes` (claudony#142 closed, unblocked) · S · Low
+- `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation · S · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| **#8** | **Epic 8: Speech act classification Phase 2/3** | M | High | openclaw#10 — SpeechActClassifier prefix detection + structured JSON; no longer gated (openclaw#16 resolved) |
-| #22 | @QuarkusTest atomicity regression for OversightGateDispatcher | S | Low | No gates — pick up anytime |
-| Phase 3 | Multi-agent coordination skills (casehub-broadcast, casehub-vote, casehub-handoff) | L | High | Needs Phase 2 speech act work first |
+| #22 | @QuarkusTest for OversightGateDispatcher atomicity | S | Low | No gates — quick win |
+| #25 ⚡ | Finalize oversight channel allowedTypes | S | Low | Unblocked (claudony#142 closed) |
+| #27 | NliSpeechActClassifier powered by casehub-inference-api | M | High | Gates on casehub-neural-text availability |
+| #28 | Inject speech act protocol via OpenClawChannelBackend | S | Med | Removes casehub-global noise for non-case-step agents |
+| Phase 3 | Multi-agent coordination skills (broadcast, vote, handoff) | L | High | No issue yet; post-C8 work |
 
 ## References
 
-- Blog: `blog/2026-06-04-mdp01-layer3-lifecycle-skills-done-dispatch.md`
-- PR: https://github.com/casehubio/openclaw/pull/26
-- Integration spec: `proj/docs/specs/openclaw-integration.md`
+- Blog: `blog/2026-06-05-mdp01-c8-speech-act-classification.md`
+- ADR: `proj/docs/adr/0003-speech-act-fallback-on-unrecognised-output.md`
+- Spec: `proj/docs/specs/2026-06-05-c8-speech-act-classification-design.md`
 - ARC42STORIES.MD: `proj/ARC42STORIES.MD`
