@@ -1,0 +1,9 @@
+branch: issue-20-channel-crash-recovery
+project-sha: 0e351912a0ef0cdac1857fdd75d6c0d9384231d1
+date: 2026-06-05
+issue: 20
+issue-repo: casehubio/openclaw
+covers: 20,22,25
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes:
