@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-07-mdp01-s-items-crash-recovery.md](2026-06-07-mdp01-s-items-crash-recovery.md) | 2026-06-07 | S-items: drop channelMap, ChannelSpec record, CDI wiring test; spec caught 4 errors before a line of code; resolveChannelId terminal filter |
 | [2026-06-05-mdp01-c8-speech-act-classification.md](2026-06-05-mdp01-c8-speech-act-classification.md) | 2026-06-05 | C8: three-tier speech act classifier; STATUS fallback over DONE; audit dual-content split; SpeechActDetection extensibility |
 | [2026-06-04-mdp01-layer3-lifecycle-skills-done-dispatch.md](2026-06-04-mdp01-layer3-lifecycle-skills-done-dispatch.md) | 2026-06-04 | Qhorus-native DONE dispatch; casehub_delegate as dedicated tool; @Transactional + @Tool condition; two STATUS fallback paths; #23, #24, #16 shipped |
 | [2026-06-03-mdp01-transactional-atomicity-cleanup.md](2026-06-03-mdp01-transactional-atomicity-cleanup.md) | 2026-06-03 | @Transactional catch block trap; OversightGateDispatcher extraction; GATE_SENDER audit trail fix; S/XS backlog items closed |
