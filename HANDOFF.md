@@ -1,33 +1,37 @@
-# Handoff — 2026-06-07
+# Handoff — 2026-06-09
 
-**Head commit (project):** 52b8623 — protocol(PP-20260607-84b26d): mcp-tool-no-instance-cache
-**Head commit (workspace):** 1a1e54d — archive(issue-20-channel-crash-recovery): move plans to attic
+**Head commit (project):** 5854177 — docs: sync ARC42STORIES.MD — stale scan at session wrap
+**Head commit (workspace):** b2a4f0a — feat: promote blog from issue-28-tool-call-first-completion
 
 ## What Changed This Session
 
-S-item batch closed: #20, #22, #25. Dropped the `ConcurrentHashMap<String, UUID> channelMap` from `CommitmentTools` — replaced with `resolveChannelId()` reading from the Qhorus `Commitment` entity with a terminal-state filter. Added `selfCommit_done/reject` state guards (COMMITMENT_ALREADY_CLOSED on post-transfer done/reject). Oversight channel gains `deniedTypes=EVENT` via a new `private record ChannelSpec` replacing a `String[]` LAYOUT. `OversightGateDispatcherCdiTest` added for CDI wiring + fail-open verification. 35 tests passing.
+#28 closed — tool-call-first completion architecture. What started as a narrow injection fix became a first-principles redesign: 10 production classes deleted (full speech act classification layer), `OversightGateService.evaluate()` collapsed from 140 lines to 12 (now archives webhook text as non-resolving STATUS), commitmentId injected into every case step COMMAND via `OpenClawChannelBackend.post()` (fully resolved — both agentId and commitmentId). ADR-0003 superseded by ADR-0004. #27 CLOSED (NliSpeechActClassifier superseded). 159 tests passing. 8 → 2 commits squashed to casehubio/openclaw main.
 
-Also: protocol PP-20260607-84b26d (no in-memory caches in @ApplicationScoped MCP beans), 2 garden entries (Mockito overload matcher silent failure GE-20260607-7d0aa8; clearInvocations spy sequencing GE-20260607-b63e95). Branch squashed 31→18 commits, pushed to casehubio/openclaw main.
+Also: 2 garden entries (GE-20260608-5087c8 @QuarkusTest correlationId fanOut gotcha; GE-20260608-c28c00 Qhorus STATUS without correlationId undocumented). ARC42STORIES stale scan fixed 4 items.
 
 ## Immediate Next Step
 
-All S-items done. Run `/work` to start a new issue. Next candidates: `#27` (NliSpeechActClassifier, M/High, gates on neural-text) or `#28` (inject speech act protocol via ChannelBackend, S/Med, no gates).
+Run `/work` to start a new issue. Top candidates: `#29` (multi-tenancy tenancyId propagation, blocked on Qhorus multi-tenancy) or `#30` (Phase 2 gate wiring through CommitmentTools.done() — deferred from #28).
 
 ## What's Left
 
 - `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation · S · Low (peer repo — file issue on qhorus session)
+- `parent#199` — Remove SpeechActClassifier cross-dep row from PLATFORM.md · XS · Low (peer repo — issue filed)
+- `parent#205` — casehub-openclaw.md deep-dive update for #28 · S · Low (peer repo — issue filed)
+- `parent#206` — PLATFORM.md ActionRiskClassifier cross-dep row + capability description · XS · Low (peer repo — issue filed)
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #28 | Inject speech act protocol via OpenClawChannelBackend | S | Med | No gates — removes casehub-global noise for non-case-step agents |
-| #27 | NliSpeechActClassifier powered by casehub-inference-api | M | High | Gates on casehub-neural-text availability |
+| #30 | Phase 2 gate wiring: CommitmentTools.done() → ActionRiskClassifier → OversightGateService.openGate() | M | Med | No gates until engine#402 SPI ships |
+| #31 | Extract OversightGateService to casehub-engine-api (PLATFORM.md known violation) | L | High | Coordinate with engine session |
+| #29 | Multi-tenancy — tenancyId propagation through provisioner and channel bridge | M | Med | Blocked on Qhorus multi-tenancy shipping |
 | Phase 3 | Multi-agent coordination skills (broadcast, vote, handoff) | L | High | No issue yet; post-C8 work |
 
 ## References
 
-- Blog: `blog/2026-06-07-mdp01-s-items-crash-recovery.md`
-- Protocol: `proj/docs/protocols/casehub/mcp-tool-no-instance-cache.md`
-- Spec: `proj/docs/superpowers/specs/2026-06-06-s-items-design.md`
+- Blog: `blog/2026-06-08-mdp01-tool-call-first-completion.md`
+- Spec: `proj/docs/superpowers/specs/2026-06-08-tool-call-first-completion-design.md`
+- ADR: `proj/docs/adr/0004-tool-call-first-completion-signaling.md`
 - ARC42STORIES.MD: `proj/ARC42STORIES.MD`
