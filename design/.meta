@@ -1,0 +1,9 @@
+branch: issue-30-phase2-gate-wiring
+project-sha: 5854177d28b18ca001013336d75c4546efece0a1
+date: 2026-06-09
+issue: 30
+issue-repo: casehubio/openclaw
+covers: 30
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes: 
