@@ -1,5 +1,7 @@
 # Handoff — 2026-06-09
 
+*Updated: parent#199, parent#205, parent#206 closed — removed from What's Left.*
+
 **Head commit (project):** 5854177 — docs: sync ARC42STORIES.MD — stale scan at session wrap
 **Head commit (workspace):** b2a4f0a — feat: promote blog from issue-28-tool-call-first-completion
 
@@ -16,9 +18,6 @@ Run `/work` to start a new issue. Top candidates: `#29` (multi-tenancy tenancyId
 ## What's Left
 
 - `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation · S · Low (peer repo — file issue on qhorus session)
-- `parent#199` — Remove SpeechActClassifier cross-dep row from PLATFORM.md · XS · Low (peer repo — issue filed)
-- `parent#205` — casehub-openclaw.md deep-dive update for #28 · S · Low (peer repo — issue filed)
-- `parent#206` — PLATFORM.md ActionRiskClassifier cross-dep row + capability description · XS · Low (peer repo — issue filed)
 
 ## What's Next
 
