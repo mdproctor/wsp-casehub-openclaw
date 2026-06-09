@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-09-mdp01-phase2-gate-wiring.md](2026-06-09-mdp01-phase2-gate-wiring.md) | 2026-06-09 | Phase 2 gate wiring: @RiskClassifier composition; Properties-format gate context; sentinel guard bug; DONE/DECLINE atomic on gate resolve |
 | [2026-06-08-mdp01-tool-call-first-completion.md](2026-06-08-mdp01-tool-call-first-completion.md) | 2026-06-08 | Tool-call-first: delete speech act layer; STATUS as archival; commitmentId injected into COMMAND; Qhorus correlationId guard from bytecode |
 | [2026-06-07-mdp01-s-items-crash-recovery.md](2026-06-07-mdp01-s-items-crash-recovery.md) | 2026-06-07 | S-items: drop channelMap, ChannelSpec record, CDI wiring test; spec caught 4 errors before a line of code; resolveChannelId terminal filter |
 | [2026-06-05-mdp01-c8-speech-act-classification.md](2026-06-05-mdp01-c8-speech-act-classification.md) | 2026-06-05 | C8: three-tier speech act classifier; STATUS fallback over DONE; audit dual-content split; SpeechActDetection extensibility |
