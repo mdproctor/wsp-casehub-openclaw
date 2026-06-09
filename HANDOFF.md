@@ -1,33 +1,37 @@
 # Handoff — 2026-06-09
 
-**Head commit (project):** 473d22f — fix(test): update MessageReceivedEvent constructor calls for tenancyId — qhorus API update
+**Head commit (project):** ef7e9fb — docs: sync ARC42STORIES.MD — stale scan at session wrap (close #12, #19)
 **Head commit (workspace):** workspace main
 
 ## What Changed This Session
 
-#30 closed — Phase 2 oversight gate wiring. When an agent calls `casehub_done`, the action is now classified by `@RiskClassifier ActionRiskClassifier` CDI beans. If `GateRequired`, a COMMAND is opened on the Qhorus oversight channel with gate context serialized as Java Properties in the message content (persists across JVM restarts). On gate approval, `fulfill()` dispatches DONE to the work channel (closing the agent commitment); on rejection, DECLINE. The `commandMessageId = -1L` sentinel bug was caught in code review and fixed. Two protocols captured: gate fail-open asymmetry rule and sentinel guard rule.
+#12 closed — Reactive SPI variants (`ReactiveOpenClawWorkerProvisioner`, `ReactiveOpenClawCaseChannelProvider`) implemented and landed on main. Both gated on `casehub.qhorus.reactive.enabled=true` (same flag as `ReactiveChannelService`/`ReactiveMessageService` — eliminates co-deployment trap). Also fixed a latent silent-data-loss bug in the existing blocking `OpenClawCaseChannelProvider.openChannel()`: channels created after startup never had `gateway.initChannel()` called, so `OpenClawChannelBackend` was never registered for them and COMMANDs were silently dropped. `ReactiveOpenClawCaseChannelProvider` uses a memoized layout cache (`ConcurrentHashMap + Uni.memoize().indefinitely()`) to eliminate the concurrent-create race.
 
-Also fixed pre-existing `MessageReceivedEvent` constructor mismatch (qhorus added `tenancyId` parameter) in `ChannelContextWindowServiceTest` and `ChannelContextWindowObserverTest`.
+#19 closed (already resolved — parent repo doc was already updated from Epic 7).
+
+Filed: openclaw#32 (LAYOUT map duplication between blocking and reactive channel providers — tracking issue for when engine adds a 4th channel type), casehubio/parent#215 (reactive SPI doc sync for casehub-openclaw.md deep-dive).
 
 ## Immediate Next Step
 
 Run `/work` to start a new issue. Top candidates:
-- **#31** — Extract OversightGateService to casehub-engine-api (known placement violation)
-- **#29** — Multi-tenancy tenancyId propagation (blocked on Qhorus multi-tenancy)
+- **#31** — Extract `OversightGateService` to casehub-engine-api (known placement violation) · L · High
+- **#29** — Multi-tenancy `tenancyId` propagation · M · Med · blocked on Qhorus
 
 ## What's Left
 
-- `qhorus#250` — CommitmentService.extendDeadline() to remove casehub_block direct mutation · S · Low (peer repo — file issue on qhorus session)
+- `qhorus#250` — `CommitmentService.extendDeadline()` to remove `casehub_block` direct mutation · S · Low · peer repo — needs a qhorus session
+- casehubio/parent#215 — reactive SPI doc sync for casehub-openclaw.md · XS · Low · filed, awaiting parent session
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #31 | Extract OversightGateService to casehub-engine-api (known placement violation) | L | High | Coordinate with engine session |
+| #31 | Extract OversightGateService to casehub-engine-api | L | High | Coordinate with engine session; known PLATFORM.md violation |
 | #29 | Multi-tenancy — tenancyId propagation | M | Med | Blocked on Qhorus multi-tenancy |
+| #32 | Extract shared LAYOUT constant (blocking + reactive channel providers) | S | Low | Trigger: engine adding 4th normative channel type |
 
 ## References
 
-- Blog: `blog/2026-06-09-mdp01-phase2-gate-wiring.md`
-- Spec: `proj/docs/superpowers/specs/2026-06-09-phase2-gate-wiring-design.md`
-- Protocols: `proj/docs/protocols/casehub/gate-fail-open-asymmetry.md`, `gate-context-sentinel-guard.md`
+- Blog: `blog/2026-06-09-mdp02-silent-failure-blocking-code.md`
+- Spec: `proj/docs/superpowers/specs/2026-06-09-reactive-spi-variants-design.md`
+- Protocols: `proj/docs/protocols/casehub/reactive-harness-gate-matches-infrastructure.md`, `channel-create-requires-init-channel.md` (garden: casehubio/garden)
