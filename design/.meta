@@ -1,0 +1,9 @@
+branch: issue-29-tenancyid-propagation
+project-sha: ef7e9fba0c63ace508fb15d6f991ebbf297bbd3d
+date: 2026-06-11
+issue: 29
+issue-repo: casehubio/openclaw
+covers: 29
+flyway-next-v: none
+design-repo: project
+design-section-hashes: 
