@@ -199,6 +199,7 @@ Delete `AgentKey.java`.
 **`ChannelContextWindowResource` (`app/`):**
 - Remove `@Inject CurrentPrincipal currentPrincipal`
 - Change to `service.query(agentId, since)` (no tenancyId arg)
+- Remove the Javadoc paragraph beginning "tenancyId is resolved via `CurrentPrincipal`..." — both its claims become false after the change
 
 **Callers of `bindAgent`/`unbindAgent` (`casehub/`):**
 
@@ -262,6 +263,7 @@ exists.
 - `verify(mockService).bindAgent("finance-agent", "test-tenant", caseId)` → `verify(mockService).bindAgent("finance-agent", caseId)`
 - `verify(mockService).unbindAgent("finance-agent", "test-tenant")` → `verify(mockService).unbindAgent("finance-agent")`
 - `verify(mockService).unbindAgent(eq("not-registered"), isNull())` → `verify(mockService).unbindAgent("not-registered")`
+- `when(mockPrincipal.tenancyId()).thenReturn("test-tenant")` **remains** — provisioner still reads `currentPrincipal.tenancyId()` for `registry.register(agentId, tenancyId, ...)`. Same reasoning as the reactive variant.
 
 `ReactiveOpenClawWorkerProvisionerTest`:
 - `verify(mockService).bindAgent("code-review-agent", "test-tenant", caseId)` → `verify(mockService).bindAgent("code-review-agent", caseId)`
