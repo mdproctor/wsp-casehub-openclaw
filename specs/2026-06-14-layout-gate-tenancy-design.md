@@ -16,9 +16,9 @@
 pointing at `PLATFORM.md §Agent Communication Mesh` as the source of truth.
 
 Two additional defects:
-- `allowedTypes`/`deniedTypes` are stored as `String` and parsed to `Set<MessageType>` at every
+- `allowedTypes`/`deniedTypes` stored as `String`, parsed to `Set<MessageType>` at every
   `openChannel()` call site — duplicated parsing in both providers.
-- No compile-time or test-time guard detects divergence between the two `LAYOUT` maps.
+- No test-time guard detects divergence between the two `LAYOUT` maps.
 
 ### Design
 
@@ -26,10 +26,14 @@ New package-private `OpenClawNormativeLayout` in `io.casehub.openclaw.casehub`:
 
 ```java
 final class OpenClawNormativeLayout {
+    /**
+     * @param allowedTypes message types permitted on this channel; null = unrestricted
+     * @param deniedTypes  message types blocked on this channel; null = unrestricted
+     */
     record ChannelSpec(
         String description,
-        Set<MessageType> allowedTypes,   // null = unrestricted
-        Set<MessageType> deniedTypes     // null = unrestricted
+        Set<MessageType> allowedTypes,
+        Set<MessageType> deniedTypes
     ) {}
 
     static final Map<String, ChannelSpec> LAYOUT = Map.of(
@@ -44,15 +48,18 @@ final class OpenClawNormativeLayout {
 
 `ChannelSpec` holds `Set<MessageType>` directly. Both providers:
 - Delete their local `ChannelSpec` record and `LAYOUT` field
-- Replace with `OpenClawNormativeLayout.LAYOUT` and `OpenClawNormativeLayout.ChannelSpec`
+- Replace all references with `OpenClawNormativeLayout.LAYOUT` and `OpenClawNormativeLayout.ChannelSpec`
 - Delete all string-to-Set parsing code at call sites
 
 ### Test
 
 `OpenClawNormativeLayoutTest`:
-- Asserts `LAYOUT` contains exactly `{"work", "observe", "oversight"}`
-- Asserts both providers call `openChannel()` only with purposes present in `LAYOUT`
-  (divergence guard — no new purpose can be added to one provider without updating `LAYOUT`)
+- Assert `LAYOUT.keySet()` equals `{"work", "observe", "oversight"}` — neither more nor fewer
+- Assert `LAYOUT.get("observe").allowedTypes()` equals `Set.of(MessageType.EVENT)` and `deniedTypes()` is null
+- Assert `LAYOUT.get("oversight").deniedTypes()` equals `Set.of(MessageType.EVENT)` and `allowedTypes()` is null
+- Assert `LAYOUT.get("work").allowedTypes()` is null and `deniedTypes()` is null
+
+These value assertions are the useful test: they verify the correct configuration is expressed, not just that the keySet exists. The "divergence between providers" is already compiler-enforced after extraction (both reference the same class).
 
 ---
 
@@ -66,19 +73,25 @@ returns `Optional.of(GateContext(oci, wci, cmi, null))` → `tenancyId = null`.
 
 `gateDispatcher.dispatch(..., null)` resolves tenancyId from `CurrentPrincipal`, which in
 webhook context is `MockCurrentPrincipal` → `DEFAULT_TENANT_ID`. For non-default tenants,
-all dispatches in `fulfill()` (oversight RESPONSE/DECLINE + work channel DONE) write to the
-wrong tenant's message store. The commitment never closes for the affected tenant.
+all dispatches in `fulfill()` write to the wrong tenant's message store. The commitment
+never closes for the affected tenant.
 
 ### Recovery design
 
-`CrossTenantChannelStore` already exists in the Qhorus jar and already exposes
-`findById(UUID) → Optional<Channel>`. `Channel.tenancyId` is non-null (enforced at the DB
-level). `fulfill()` already has `UUID oversightChannelId = gateCmd.channelId`.
+`CrossTenantChannelStore` already exists in the Qhorus jar:
+```java
+public interface CrossTenantChannelStore {
+    Optional<Channel> findById(UUID id);  // UUID-keyed, no tenant filter
+    // ...
+}
+```
+
+`Channel.tenancyId` is non-null (`@Column(nullable = false, updatable = false)`, defaults
+to `DEFAULT_TENANT_ID`). `fulfill()` already has `UUID oversightChannelId = gateCmd.channelId`.
 
 Add `@CrossTenant CrossTenantChannelStore crossTenantChannelStore` to `OversightGateService`
-constructor (consistent with the existing `@CrossTenant CrossTenantMessageStore` injection).
-
-In `fulfill()`, after:
+constructor (consistent with existing `@CrossTenant CrossTenantMessageStore`). In `fulfill()`,
+after:
 ```java
 String tenancyId = gateContext.map(GateContext::tenancyId).orElse(null);
 ```
@@ -98,80 +111,147 @@ if (tenancyId == null) {
 Dispatch proceeds with the recovered tenancyId. No separate upgrade note — the migration
 path handles pre-#29 gates silently and automatically.
 
-### Test
+### Test changes (`OversightGateServiceTest`)
 
-`OversightGateServiceTest`:
-- New test: gate COMMAND message with content missing `tenancyId` key → after recovery,
-  `crossTenantChannelStore.findById(oversightChannelId)` called → tenancyId used for dispatch
-- New test: gate COMMAND with no `tenancyId` AND channel not found → `fulfill()` logs warn,
-  dispatch proceeds with null (existing behavior, now explicitly tested)
+**Setup additions:**
+```java
+// New field:
+CrossTenantChannelStore crossTenantChannelStore;
+
+// In setup() — add these two lines:
+crossTenantChannelStore = mock(CrossTenantChannelStore.class);
+when(crossTenantChannelStore.findById(any())).thenReturn(Optional.empty()); // default: not found
+
+// Constructor grows from 6 to 7 args — update the service instantiation:
+service = new OversightGateService(channelService, messageService, commitmentStore,
+        gateDispatcher, classifiers, crossTenantMessageStore, crossTenantChannelStore);
+```
+
+**New test 1:** Gate COMMAND content has `tenancyId` key absent → `crossTenantChannelStore.findById(oversightChannelId)` returns a channel with `tenancyId = "tenant-A"` → dispatcher receives `"tenant-A"` as the tenancyId arg. Verify `crossTenantChannelStore.findById(oversightChannelId)` was called exactly once.
+
+**New test 2:** Gate COMMAND content has `tenancyId` key absent AND `crossTenantChannelStore.findById(oversightChannelId)` returns `Optional.empty()` → dispatcher called with `tenancyId = null` (existing fail-open behavior, now explicitly tested).
+
+**No existing tests change.** All existing tests use `buildGateCommand(...)` which includes `tenancyId` in content → recovery path not triggered.
 
 ---
 
 ## Issue #33 — ChannelContextWindow tenancyId-free query
 
-### Problem
-
-`ChannelContextWindowResource` reads `currentPrincipal.tenancyId()` to scope
-`service.query(agentId, tenancyId, since)`. In plugin/SDK context (no casehub principal),
-`CurrentPrincipal` resolves to `MockCurrentPrincipal` → `DEFAULT_TENANT_ID`. For non-default
-tenants, `agentToCase.get(new AgentKey(agentId, DEFAULT_TENANT_ID))` returns null →
-`WindowContent.noAssociation()` → no context injected.
-
 ### Root cause
 
-The resource shouldn't need a principal. The service already knows each agent's tenancyId —
-`bindAgent(agentId, tenancyId, caseId)` registers it at provision time. The tenancyId is
-derivable from `agentId` without the caller supplying it.
+`ChannelContextWindowResource` reads `currentPrincipal.tenancyId()` to scope
+`service.query(agentId, tenancyId, since)`. In plugin/SDK context, `CurrentPrincipal`
+resolves to `MockCurrentPrincipal` → `DEFAULT_TENANT_ID`. For non-default tenants,
+`agentToCase.get(new AgentKey(agentId, DEFAULT_TENANT_ID))` returns null →
+`WindowContent.noAssociation()` → no context injected.
 
-### Design
+### Structural inconsistency in the current design
 
-**`ChannelContextWindowService`** — add internal reverse lookup:
+`ChannelContextWindowService` uses `ConcurrentHashMap<AgentKey, UUID> agentToCase` where
+`AgentKey(agentId, tenancyId)` was introduced in #29 to anticipate concurrent same-agentId
+workers across tenants. But `OpenClawAgentRegistry` uses `ConcurrentHashMap<String, UUID>
+agentToCase` — plain agentId keys, last-write-wins per agentId across all tenants.
 
+ARC42 §2 Constraints documents this explicitly: "No concurrent same-agentId workers:
+`OpenClawAgentRegistry` is last-write-wins per agentId. A future engine-level fix
+(workerId in WorkResult) unblocks concurrent workers."
+
+The two maps are therefore structurally inconsistent: the registry says agentId is a global
+key (no tenant scoping); the service says agentId requires tenant scoping. When concurrent
+workers arrive, the fix is keyed on `workerId` (per ARC42) — at that point BOTH maps need to
+rekey, not just the service. `AgentKey(agentId, tenancyId)` does not provide a useful
+stepping stone toward that future.
+
+### Design decision
+
+**Remove `AgentKey` from `ChannelContextWindowService`**. This achieves consistency with
+`OpenClawAgentRegistry`, eliminates the internal inconsistency, and provides a single
+refactor point when `workerId` arrives.
+
+Consequence: `tenancyId` is no longer part of any map key in the service. Drop it from
+`bindAgent`/`unbindAgent` signatures too — it becomes vestigial.
+
+Under the ARC42 §2 constraint (one agentId per deployment across all tenants), this is safe
+today. When concurrent workers arrive, both maps (registry and service) are refactored
+together to `workerId`-keyed.
+
+### Production changes
+
+**`ChannelContextWindowService` (`core/`):**
 ```java
-private final ConcurrentHashMap<String, String> agentIdToTenancyId = new ConcurrentHashMap<>();
+// Replace:
+private final ConcurrentHashMap<AgentKey, UUID> agentToCase = new ConcurrentHashMap<>();
+// With:
+private final ConcurrentHashMap<String, UUID> agentToCase = new ConcurrentHashMap<>();
+
+// Signature changes:
+public void bindAgent(String agentId, UUID caseId)      // drop tenancyId
+public void unbindAgent(String agentId)                  // drop tenancyId, drop null guard
+public WindowContent query(String agentId, long since)   // drop tenancyId — resolves from agentToCase.get(agentId)
 ```
 
-- `bindAgent(agentId, tenancyId, caseId)`: also `agentIdToTenancyId.put(agentId, tenancyId)`
-- `unbindAgent(agentId, tenancyId)`: also `agentIdToTenancyId.remove(agentId)`
-- Remove `query(agentId, tenancyId, since)` from public API
-- Replace with `query(agentId, since)`:
-  ```java
-  public WindowContent query(String agentId, long since) {
-      String tenancyId = agentIdToTenancyId.get(agentId);
-      if (tenancyId == null) return WindowContent.noAssociation();
-      UUID caseId = agentToCase.get(new AgentKey(agentId, tenancyId));
-      if (caseId == null) return WindowContent.noAssociation();
-      // ... existing buffer aggregation logic unchanged ...
-  }
-  ```
+`unbindAgent` loses its null-tenancyId guard — `ConcurrentHashMap.remove()` on an absent
+key is already a no-op, so the guard was only needed because null could produce a wrong
+`AgentKey`.
 
-`AgentKey` isolation is preserved: the internal `agentToCase` lookup still uses
-`AgentKey(agentId, tenancyId)` — multi-tenant isolation is maintained. Only the caller
-no longer needs to supply the tenancyId; the service supplies it from its own map.
+Delete `AgentKey.java`.
 
-**`ChannelContextWindowResource`**:
-- Remove `@Inject CurrentPrincipal`
-- Change `service.query(agentId, currentPrincipal.tenancyId(), since)` → `service.query(agentId, since)`
+**`ChannelContextWindowResource` (`app/`):**
+- Remove `@Inject CurrentPrincipal currentPrincipal`
+- Change to `service.query(agentId, since)` (no tenancyId arg)
 
-**Plugin/SDK**: no changes. Both already pass `agentId` correctly and fail open on error.
+**Callers of `bindAgent`/`unbindAgent` (`casehub/`):** drop the tenancyId argument:
+- `OpenClawWorkerProvisioner.provision()` → `service.bindAgent(agentId, caseId)`
+- `OpenClawWorkerProvisioner.terminate()` → `service.unbindAgent(workerId)`
+- `OpenClawWorkerStatusListener` → `service.unbindAgent(workerId)`
+- `ReactiveOpenClawWorkerProvisioner` → same as blocking provisioner
 
-**Auth retrofit**: this endpoint stays unauthenticated and principal-free permanently.
-OIDC auth is not needed here — `agentId` is the effective scoping key. The window is on
-the intelligence path (best-effort, not correctness), so the security tradeoff is sound.
+**Plugin/SDK:** no changes — both already pass only `agentId` to the REST endpoint.
 
-### Test
+### Test changes
 
-`ChannelContextWindowServiceTest`:
-- After `bindAgent("agent-1", "tenant-A", caseId)` + `bindChannel(caseId, channelId)` +
-  `add(event for channelId)` → `query("agent-1", 0)` returns messages
-- After `bindAgent("agent-1", "tenant-A", ...)` + `bindAgent("agent-2", "tenant-B", ...)`:
-  `query("agent-1", 0)` does not see tenant-B's content (isolation via `AgentKey`)
-- `query("unknown-agent", 0)` returns `noAssociation()` (no `agentIdToTenancyId` entry)
+**`ChannelContextWindowServiceTest` — tests removed (behaviors no longer exist):**
 
-`ChannelContextWindowResourceTest`:
-- `CurrentPrincipal` is no longer injected into the resource — verify no principal-dependent
-  behavior in the resource layer
+| Test | Why removed |
+|------|-------------|
+| `bindAgent_sameAgentId_differentTenants_independentWindows` | Requires two tenants with same agentId to coexist — impossible with single-key map |
+| `query_wrongTenant_returnsNoAssociation` | Tests old 3-arg signature; wrong-tenant concept no longer applies |
+| `unbindAgent_oneTenant_doesNotAffectOther` | Requires independent same-agentId bindings per tenant — impossible with single-key map |
+| `unbindAgent_nullTenancyId_logsAndNoOps` | null-tenancyId guard removed; 1-arg unbindAgent cannot receive null tenancyId |
+
+**`ChannelContextWindowServiceTest` — all remaining tests updated (signature change only):**
+- `bindAgent("agent-1", "test-tenant", caseId)` → `bindAgent("agent-1", caseId)`
+- `unbindAgent("agent-1", "test-tenant")` → `unbindAgent("agent-1")`
+- `query("agent-1", "test-tenant", 0L)` → `query("agent-1", 0L)`
+
+This affects approximately 15 tests. Behaviour preserved; only signature drops tenancyId.
+
+**`CrossTenantContextIsolationTest` (`app/`) — entire test class removed.** Its purpose is
+explicitly to test `AgentKey` isolation (see its class Javadoc). That behavior no longer
+exists.
+
+**`ChannelContextWindowResourceTest` — all 5 tests change:**
+
+1. `get_knownAgent_returns200WithMessages` — remove `when(currentPrincipal.tenancyId())` stub; change service mock to `when(service.query("test-agent", 0L))`; remove `@InjectMock CurrentPrincipal`
+2. `get_unknownAgent_returns200NotAssociated` — same principal removal; update service stub to 2-arg
+3. `get_sinceParamPassedThrough` — same; update `verify(service).query("agent-1", 42L)`
+4. `get_sinceDefaultsToZero` — same; update `verify(service).query("agent-1", 0L)`
+5. `get_tenancyIdFromPrincipalPassedToService` — **removed entirely** (behavior gone — resource no longer reads principal)
+
+**New resource test:** `get_queryCallsServiceWithAgentIdAndSince_noPrincipalInteraction` — verify `service.query("agent-1", 0L)` called, verify no interaction with any `CurrentPrincipal` mock.
+
+**Caller tests (`casehub/`):**
+- `OpenClawWorkerProvisionerTest`: update `verify(mockService).unbindAgent(...)` stubs to 1-arg; update `verify(mockService).bindAgent(...)` stubs to 2-arg
+- `ReactiveOpenClawWorkerProvisionerTest`: same
+- `OpenClawWorkerStatusListenerTest`: update `verify(mockService).unbindAgent(...)` stubs to 1-arg
+
+### New service tests
+
+**New test 1:** After `bindAgent("agent-1", caseId)` + `bindChannel(caseId, channelId)` + `add(event)` → `query("agent-1", 0L)` returns messages. (Core round-trip for new signature.)
+
+**New test 2:** After `bindAgent("agent-1", caseId)` + `unbindAgent("agent-1")` → `query("agent-1", 0L).agentHasAssociation()` is false.
+
+**New test 3:** `query("unknown-agent", 0L)` returns `noAssociation()`.
 
 ---
 
@@ -181,7 +261,8 @@ the intelligence path (best-effort, not correctness), so the security tradeoff i
 - `#32`: `OpenClawNormativeLayout` is package-private — no risk of consumers depending on it.
   The Known Placement Violation for `CaseChannelLayout` (parent#93, Claudony) is unchanged.
 - `#34`: `CrossTenantChannelStore` injection follows existing pattern in the same class.
-- `#33`: `ChannelContextWindowService` query signature change is an internal-only break
-  (service lives in `core/`, the only callers are `ChannelContextWindowResource` in `app/`
-  and tests). Breaking callers is intentional — it forces them to the correct API.
-  No callers in peer repos.
+- `#33`: `ChannelContextWindowService` and `AgentKey` change breaks call sites in `casehub/`
+  module only. No peer-repo API surface changes. `ChannelContextWindowResource` in `app/`
+  loses its `CurrentPrincipal` dependency — this endpoint is permanently unauthenticated,
+  consistent with its role as an intelligence-layer (best-effort) query endpoint.
+  The ARC42 §2 constraint is the load-bearing justification for single-key map safety.
