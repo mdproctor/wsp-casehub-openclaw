@@ -1,0 +1,9 @@
+branch: issue-32-layout-gate-tenancy
+project-sha: 1be28e3c9027282b36cb422311ec6cc59a86c4b4
+date: 2026-06-14
+issue: 32
+issue-repo: casehubio/openclaw
+covers: 32,34,33
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes: 
