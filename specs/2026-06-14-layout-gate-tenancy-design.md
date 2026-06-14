@@ -200,11 +200,27 @@ Delete `AgentKey.java`.
 - Remove `@Inject CurrentPrincipal currentPrincipal`
 - Change to `service.query(agentId, since)` (no tenancyId arg)
 
-**Callers of `bindAgent`/`unbindAgent` (`casehub/`):** drop the tenancyId argument:
-- `OpenClawWorkerProvisioner.provision()` → `service.bindAgent(agentId, caseId)`
-- `OpenClawWorkerProvisioner.terminate()` → `service.unbindAgent(workerId)`
-- `OpenClawWorkerStatusListener` → `service.unbindAgent(workerId)`
-- `ReactiveOpenClawWorkerProvisioner` → same as blocking provisioner
+**Callers of `bindAgent`/`unbindAgent` (`casehub/`):**
+
+`OpenClawWorkerProvisioner.provision()`:
+- `service.bindAgent(agentId, tenancyId, caseId)` → `service.bindAgent(agentId, caseId)`
+
+`OpenClawWorkerProvisioner.terminate()`:
+- `service.unbindAgent(workerId, tenancyId)` → `service.unbindAgent(workerId)`
+- Remove trailing comment `// null-safe: service logs warn and no-ops` — refers to the null-tenancyId guard that is being deleted
+
+`OpenClawWorkerStatusListener.onWorkerCompleted()`:
+- Line 52 comment: `// Capture caseId and tenancyId before deregistering` → `// Capture caseId before deregistering` (tenancyId no longer needed)
+- Line 54: remove entirely — `String tenancyId = caseId != null ? registry.findTenancyId(caseId).orElse(null) : null;` is dead once `service.unbindAgent(workerId)` no longer takes tenancyId
+- `service.unbindAgent(workerId, tenancyId)` → `service.unbindAgent(workerId)`
+
+`ReactiveOpenClawWorkerProvisioner.provision()`:
+- `service.bindAgent(agentId, tenancyId, caseId)` → `service.bindAgent(agentId, caseId)`
+- `currentPrincipal.tenancyId()` call on line 61 **stays** — tenancyId is still read for `registry.register(agentId, tenancyId, caseId, sessionKey)`
+
+`ReactiveOpenClawWorkerProvisioner.terminate()`:
+- `service.unbindAgent(workerId, tenancyId)` → `service.unbindAgent(workerId)`
+- Remove trailing comment `// null-safe: service logs warn and no-ops`
 
 **Plugin/SDK:** no changes — both already pass only `agentId` to the REST endpoint.
 
@@ -241,17 +257,51 @@ exists.
 **New resource test:** `get_queryCallsServiceWithAgentIdAndSince_noPrincipalInteraction` — verify `service.query("agent-1", 0L)` called, verify no interaction with any `CurrentPrincipal` mock.
 
 **Caller tests (`casehub/`):**
-- `OpenClawWorkerProvisionerTest`: update `verify(mockService).unbindAgent(...)` stubs to 1-arg; update `verify(mockService).bindAgent(...)` stubs to 2-arg
-- `ReactiveOpenClawWorkerProvisionerTest`: same
-- `OpenClawWorkerStatusListenerTest`: update `verify(mockService).unbindAgent(...)` stubs to 1-arg
 
-### New service tests
+`OpenClawWorkerProvisionerTest`:
+- `verify(mockService).bindAgent("finance-agent", "test-tenant", caseId)` → `verify(mockService).bindAgent("finance-agent", caseId)`
+- `verify(mockService).unbindAgent("finance-agent", "test-tenant")` → `verify(mockService).unbindAgent("finance-agent")`
+- `verify(mockService).unbindAgent(eq("not-registered"), isNull())` → `verify(mockService).unbindAgent("not-registered")`
 
-**New test 1:** After `bindAgent("agent-1", caseId)` + `bindChannel(caseId, channelId)` + `add(event)` → `query("agent-1", 0L)` returns messages. (Core round-trip for new signature.)
+`ReactiveOpenClawWorkerProvisionerTest`:
+- `verify(mockService).bindAgent("code-review-agent", "test-tenant", caseId)` → `verify(mockService).bindAgent("code-review-agent", caseId)`
+- `verify(mockService).unbindAgent("finance-agent", "test-tenant")` → `verify(mockService).unbindAgent("finance-agent")`
+- `verify(mockService).unbindAgent(eq("not-registered"), isNull())` → `verify(mockService).unbindAgent("not-registered")`
+- `when(mockPrincipal.tenancyId()).thenReturn("test-tenant")` **remains** — provisioner still reads `currentPrincipal.tenancyId()` for `registry.register(agentId, tenancyId, ...)`. Only the service call drops tenancyId; the registry call does not.
 
-**New test 2:** After `bindAgent("agent-1", caseId)` + `unbindAgent("agent-1")` → `query("agent-1", 0L).agentHasAssociation()` is false.
+`OpenClawWorkerStatusListenerTest`:
+- `onWorkerCompleted_callsUnbindAgentOnContextWindowService`: `verify(mockService).unbindAgent("agent-1", "test-tenant")` → `verify(mockService).unbindAgent("agent-1")`
+- `onWorkerCompleted_readsTenancyIdBeforeDeregister` — **removed entirely**. The test's purpose was to verify tenancyId is read from the registry before `deregister()` clears it. With the tenancyId fetch removed from the production code, the test has no behavioral claim left.
+- `onWorkerCompleted_unknownAgent_unbindAgentWithNullTenancyId`: `verify(mockService).unbindAgent(eq("unknown"), isNull())` → `verify(mockService).unbindAgent("unknown")`; rename to `onWorkerCompleted_unknownAgent_callsUnbindAgent`
 
-**New test 3:** `query("unknown-agent", 0L)` returns `noAssociation()`.
+### New service test
+
+**`bindAgent_sameAgentId_secondCallOverwritesFirst`** — the primary behavioral consequence of removing `AgentKey`:
+
+```java
+@Test
+void bindAgent_sameAgentId_secondCallOverwritesFirst() {
+    UUID caseA = UUID.randomUUID(), caseB = UUID.randomUUID();
+    UUID channelA = UUID.randomUUID(), channelB = UUID.randomUUID();
+    service.bindAgent("bot", caseA);
+    service.bindChannel(caseA, channelA);
+    service.add(event(channelA, "case-a/work", MessageType.STATUS)); // seq=1
+
+    service.bindAgent("bot", caseB);  // overwrites caseA binding
+    service.bindChannel(caseB, channelB);
+    service.add(event(channelB, "case-b/work", MessageType.COMMAND)); // seq=2
+
+    WindowContent result = service.query("bot", 0L);
+    assertThat(result.agentHasAssociation()).isTrue();
+    // caseB's channel content — caseA's binding is gone
+    assertThat(result.messages()).hasSize(1);
+    assertThat(result.messages().get(0).messageType()).isEqualTo(MessageType.COMMAND);
+}
+```
+
+This test documents the deliberate architectural choice and acts as a regression guard: if `AgentKey`-style isolation were restored, this test fails in the right direction.
+
+The three tests labeled as "new" in the previous draft (`roundtrip`, `unbind-query`, `unknown-agent`) are signature updates of existing tests, not new behavior. Only the last-write-wins test above is genuinely new.
 
 ---
 
