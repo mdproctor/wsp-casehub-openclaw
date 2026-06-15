@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-15-mdp01-layout-gate-tenancy.md](2026-06-15-mdp01-layout-gate-tenancy.md) | 2026-06-15 | Removing AgentKey; ChannelContextWindowService self-resolving; CrossTenantChannelStore gate recovery; layout extraction |
 | [2026-06-12-mdp01-multi-tenant-tenancyid-propagation.md](2026-06-12-mdp01-multi-tenant-tenancyid-propagation.md) | 2026-06-12 | CrossTenantMessageStore for gate fulfillment; @DefaultBean CDI ambiguity; AgentKey composite key; delivery webhook tenancyId bootstrapping |
 | [2026-06-09-mdp02-silent-failure-blocking-code.md](2026-06-09-mdp02-silent-failure-blocking-code.md) | 2026-06-09 | Reactive SPI variants; initChannel() silent-loss bug in blocking provider; memoize eviction ordering; single gate flag |
 | [2026-06-09-mdp01-phase2-gate-wiring.md](2026-06-09-mdp01-phase2-gate-wiring.md) | 2026-06-09 | Phase 2 gate wiring: @RiskClassifier composition; Properties-format gate context; sentinel guard bug; DONE/DECLINE atomic on gate resolve |
