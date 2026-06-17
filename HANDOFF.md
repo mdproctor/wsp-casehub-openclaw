@@ -1,40 +1,37 @@
-# Handoff — 2026-06-15
+# Handoff — 2026-06-17
 
-**Head commit (project):** bd7faa7 — refactor: remove AgentKey — ChannelContextWindowService uses plain agentId key — Closes #33
+**Head commit (project):** e137df1 — feat(examples): add DemoGateClassifier, ExamplePoller, ExampleSetup, ExampleController + examples/ directory — Closes #35
 **Head commit (workspace):** workspace main
 
 ## What Changed This Session
 
-Closed issues #32, #34, #33 on branch `issue-32-layout-gate-tenancy`.
+Implemented and closed #35 — the examples directory for casehub-openclaw.
 
-- **#32** — `OpenClawNormativeLayout` extracted; both `CaseChannelProvider` implementations now reference a single source of truth for the 3-channel layout; `ChannelSpec.allowedTypes`/`deniedTypes` are `Set<MessageType>` (no more string parsing at call sites)
-- **#34** — `OversightGateService.fulfill()` recovers `tenancyId` from `CrossTenantChannelStore` when `GateContext` has no `tenancyId` key (pre-#29 gates); silent for single-tenant, correct for multi-tenant
-- **#33** — `AgentKey` removed from `ChannelContextWindowService`; service now uses plain `agentId` key consistent with `OpenClawAgentRegistry`; `GET /channel-context/{agentId}` and `casehub://channel/{agentId}/recent` require no principal; plugin/SDK work without changes
-
-4 squashed commits on `upstream/main` (casehubio/openclaw). All tests green. Protocol `PP-20260615-11b9d2` added.
+- **Java production code** — `app/example/` package: `DemoGateClassifier` (gates on agentId not keyword), `ExamplePoller` (@Transactional JPA delegate), `ExampleSetup` (@Transactional channel/agent setup), `ExampleController` (@Blocking JAX-RS handler with FULFILLED/DECLINED/DELEGATED/timeout handling)
+- **Tests** — 22 new tests; 99 total in app module passing. Pre-existing `DispatchResult` constructor mismatch fixed in 5 test files.
+- **examples/ directory** — 3 docker-compose stacks, 6 Python mock servers, scenario/approve scripts, system-prompt.md files per agent, SKILL.md files, READMEs
+- **Docs** — CLAUDE.md and ARC42STORIES.MD updated; casehubio/parent#262 filed for deep-dive sync
+- **Squash** — 10 commits → 2 clean commits on casehubio/openclaw main
+- **Garden** — 2 entries: SmallRye Config SRCFG00040 empty-string-as-null gotcha; @Blocking required on quarkus-rest polling handlers
 
 ## Immediate Next Step
 
-Run `/work` to start a new issue. Top candidates: **#31** (OversightGateService extraction to casehub-engine-api, L/High — design required before any code).
+Start a new issue — top candidate is **#31** (extract `OversightGateService` to `casehub-engine-api`, L/High — design required before any code). Run `/work` to begin.
 
 ## What's Left
 
 - `qhorus#250` — `CommitmentService.extendDeadline()` to remove `casehub_block` direct mutation · S · Low · peer repo
-- `casehubio/parent#215` — reactive SPI doc sync for casehub-openclaw.md · XS · Low · awaiting parent session
-- `casehubio/parent#239` — deep-dive `docs/repos/casehub-openclaw.md` needs multi-tenancy section · XS · Low · awaiting parent session
-- `openclaw#34` — upgrade note for pre-#29 persisted gates — now resolved by code; consider closing the doc-note option
+- `casehubio/parent#215` — reactive SPI doc sync for `casehub-openclaw.md` · XS · Low · awaiting parent session
+- `casehubio/parent#262` — `docs/repos/casehub-openclaw.md` needs examples/ + app/example/ documentation · XS · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #31 | Extract OversightGateService to casehub-engine-api | L | High | Known PLATFORM.md violation; coordinate with engine session; design brainstorm required |
-| #32 | CLOSED | — | — | Closed this session |
-| #33 | CLOSED | — | — | Closed this session |
-| #34 | CLOSED | — | — | Closed this session |
+| #31 | Extract `OversightGateService` to `casehub-engine-api` | L | High | Known PLATFORM.md violation; brainstorm + engine session coordination required before any code |
 
 ## References
 
-- Blog: `blog/2026-06-15-mdp01-layout-gate-tenancy.md`
-- Protocol: `proj/docs/protocols/casehub/normative-layout-single-source.md` (PP-20260615-11b9d2)
-- Integration spec: `proj/docs/specs/openclaw-integration.md` (updated — stale AgentKey ref removed)
+- Blog: `blog/2026-06-17-mdp01-examples-implementation.md`
+- Spec: `docs/superpowers/specs/2026-06-16-examples-design.md` (final — iteration 8)
+- Examples: `examples/` — README.md per example
