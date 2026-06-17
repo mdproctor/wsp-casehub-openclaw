@@ -1,0 +1,9 @@
+branch: issue-31-extract-oversight-gate-service
+project-sha: e137df1ff298b64819658257f2e8904c7ea3888c
+date: 2026-06-17
+issue: 31
+issue-repo: casehubio/openclaw
+covers: 31
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes: 
