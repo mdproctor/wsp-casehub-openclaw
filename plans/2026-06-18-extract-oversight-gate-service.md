@@ -1498,9 +1498,13 @@ Also update the stale comment at line 109 (the `@BeforeEach` channel-creation bl
 
 In `app/src/test/java/io/casehub/openclaw/app/mcp/CommitmentToolsTest.java`:
 ```java
-// Change imports:
+// Change two imports:
 // Remove: import io.casehub.openclaw.casehub.OversightGateService;
 // Add:    import io.casehub.api.spi.OversightGateService;
+
+// Remove: import io.casehub.openclaw.casehub.GateDecision;
+// Add:    import io.casehub.api.spi.GateDecision;
+// (GateDecision is used in mock stubs: new GateDecision.Autonomous(), new GateDecision.GatePending(...))
 
 // The mock field and mock creation remain the same:
 OversightGateService oversightGateService;
