@@ -1448,10 +1448,14 @@ Replace all calls to `stubSingleClassifier(...)` with `stubClassifier(...)`. Del
 
 - [ ] **Step 2: Delete old test and compile test**
 
+`OversightGateServiceTest` was committed — use `git rm`. `OpenClawOversightGateServiceCompileTest`
+was never committed (Task B2 only committed the production file) — use plain `rm`:
+
 ```bash
 git -C /Users/mdproctor/claude/casehub/openclaw rm \
-    casehub/src/test/java/io/casehub/openclaw/casehub/OversightGateServiceTest.java \
-    casehub/src/test/java/io/casehub/openclaw/casehub/OpenClawOversightGateServiceCompileTest.java
+    casehub/src/test/java/io/casehub/openclaw/casehub/OversightGateServiceTest.java
+
+rm casehub/src/test/java/io/casehub/openclaw/casehub/OpenClawOversightGateServiceCompileTest.java
 ```
 
 - [ ] **Step 3: Update OversightGateDispatcherTest**
@@ -1481,6 +1485,15 @@ In `app/src/test/java/io/casehub/openclaw/app/OversightGateDispatcherCdiTest.jav
 
 CDI injects `OpenClawOversightGateService` (which implements the interface) into the `OversightGateService`-typed field — this is correct.
 
+Also update the stale comment at line 109 (the `@BeforeEach` channel-creation block):
+```java
+// Before:
+// Channel names must match CaseChannelNames exactly — fulfill() looks them up by name
+
+// After:
+// Channel names follow CaseChannel.channelName(caseId, purpose) convention — fulfill() looks them up by name
+```
+
 - [ ] **Step 5: Update CommitmentToolsTest**
 
 In `app/src/test/java/io/casehub/openclaw/app/mcp/CommitmentToolsTest.java`:
@@ -1497,17 +1510,28 @@ oversightGateService = mock(OversightGateService.class);  // Mockito mocks inter
 - [ ] **Step 6: Update OpenClawDeliveryResourceTest**
 
 In `app/src/test/java/io/casehub/openclaw/app/OpenClawDeliveryResourceTest.java`:
-```java
-// Field injects the concrete class (evaluate() is not on interface):
-// Remove: OversightGateService oversightGateService;  (if typed as old class)
-// Add: OpenClawOversightGateService oversightGateService;
 
-// Import:
+`OpenClawDeliveryResource` will inject `OpenClawOversightGateService` (concrete) for `evaluate()`.
+The `@InjectMock` field must match the injection type:
+
+```java
+// Change import:
 // Remove: import io.casehub.openclaw.casehub.OversightGateService;
 // Add:    import io.casehub.openclaw.casehub.OpenClawOversightGateService;
+
+// Change @InjectMock field (line 31):
+// Before:
+@InjectMock
+OversightGateService oversightGateService;
+
+// After:
+@InjectMock
+OpenClawOversightGateService oversightGateService;
 ```
 
-Note: Mockito can mock concrete classes (`mock(OpenClawOversightGateService.class)`). If the test uses `@InjectMock` or `@QuarkusTest`, ensure the injection type matches.
+The `verify(oversightGateService).evaluate(...)` calls are unchanged — `evaluate()` is a public
+method on `OpenClawOversightGateService`. Quarkus `@InjectMock` on a concrete class works the
+same as on an interface.
 
 - [ ] **Step 7: Run all casehub + app tests — expect PASS**
 
