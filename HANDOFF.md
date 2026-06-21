@@ -1,37 +1,55 @@
-# Handoff — 2026-06-17
+# Handoff — 2026-06-21
 
-**Head commit (project):** e137df1 — feat(examples): add DemoGateClassifier, ExamplePoller, ExampleSetup, ExampleController + examples/ directory — Closes #35
-**Head commit (workspace):** workspace main
+**Head commit (project):** b464ccf — docs: sync ARC42STORIES.MD
+**Head commit (workspace):** eef2705 — diary entry 2026-06-20
 
 ## What Changed This Session
 
-Implemented and closed #35 — the examples directory for casehub-openclaw.
+Completed the design phase of #31 (OversightGateService SPI extraction):
 
-- **Java production code** — `app/example/` package: `DemoGateClassifier` (gates on agentId not keyword), `ExamplePoller` (@Transactional JPA delegate), `ExampleSetup` (@Transactional channel/agent setup), `ExampleController` (@Blocking JAX-RS handler with FULFILLED/DECLINED/DELEGATED/timeout handling)
-- **Tests** — 22 new tests; 99 total in app module passing. Pre-existing `DispatchResult` constructor mismatch fixed in 5 test files.
-- **examples/ directory** — 3 docker-compose stacks, 6 Python mock servers, scenario/approve scripts, system-prompt.md files per agent, SKILL.md files, READMEs
-- **Docs** — CLAUDE.md and ARC42STORIES.MD updated; casehubio/parent#262 filed for deep-dive sync
-- **Squash** — 10 commits → 2 clean commits on casehubio/openclaw main
-- **Garden** — 2 entries: SmallRye Config SRCFG00040 empty-string-as-null gotcha; @Blocking required on quarkus-rest polling handlers
+- **Spec finalised** (7 review iterations) — `docs/superpowers/specs/2026-06-17-extract-oversight-gate-service-design.md`
+- **Implementation plan written** — `plans/2026-06-18-extract-oversight-gate-service.md` (Tasks A1–A5 engine, B1–B9 openclaw)
+- **Engine#538 filed and closed** — engine session implemented Part A; engine-api now has `GateDecision`, `OversightGateService`, `ReactiveOversightGateService`, `ChainedReactiveActionRiskClassifier` (moved to `io.casehub.api.classification`), `NoOpOversightGateService` (with startup WARN), `NoOpReactiveOversightGateService`
+- **CI fixed** — engine#530 added `String taskType` at position 3 of `ProvisionContext`; openclaw's 6-arg test helpers broke on snapshot pickup; fix cherry-picked to main (`9eb09ff`); CI green
+- **ARC42STORIES.MD** — 8 stale references to closed engine#402 + openclaw#30 updated
 
 ## Immediate Next Step
 
-Start a new issue — top candidate is **#31** (extract `OversightGateService` to `casehub-engine-api`, L/High — design required before any code). Run `/work` to begin.
+Execute Part B of the plan: implement the openclaw changes. Run `/work` to resume the feature branch, then:
+
+```
+Part B (Tasks B1–B9) — full plan at plans/2026-06-18-extract-oversight-gate-service.md
+```
+
+Verify the engine-api snapshot first (Task B1):
+```bash
+JAVA_HOME=$(/usr/libexec/java_home -v 26) mvn --batch-mode install 2>&1 | head -20
+```
+Expect compilation errors for `GateDecision` — confirms new snapshot is live. Then proceed task by task.
+
+## Cross-Module
+
+**Blocked by:**
+- `casehub-engine` — Part A complete ✅; new snapshot in `~/.m2`
+
+**We're blocking:**
+- Nothing currently
 
 ## What's Left
 
 - `qhorus#250` — `CommitmentService.extendDeadline()` to remove `casehub_block` direct mutation · S · Low · peer repo
-- `casehubio/parent#215` — reactive SPI doc sync for `casehub-openclaw.md` · XS · Low · awaiting parent session
+- `casehubio/parent#215` — reactive SPI doc sync for `casehub-openclaw.md` · XS · Low
 - `casehubio/parent#262` — `docs/repos/casehub-openclaw.md` needs examples/ + app/example/ documentation · XS · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #31 | Extract `OversightGateService` to `casehub-engine-api` | L | High | Known PLATFORM.md violation; brainstorm + engine session coordination required before any code |
+| #31 | Implement Part B — rename, inject, delete dead code | L | Med | Plan ready; engine snapshot available |
+| #30 | openclaw#30 CLOSED — gate wiring done | — | — | No action needed |
 
 ## References
 
-- Blog: `blog/2026-06-17-mdp01-examples-implementation.md`
-- Spec: `docs/superpowers/specs/2026-06-16-examples-design.md` (final — iteration 8)
-- Examples: `examples/` — README.md per example
+- Spec: `docs/superpowers/specs/2026-06-17-extract-oversight-gate-service-design.md`
+- Plan: `plans/2026-06-18-extract-oversight-gate-service.md`
+- Diary: `blog/2026-06-20-mdp01-seven-rounds-spec-right.md`
