@@ -2,6 +2,7 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-20-mdp01-seven-rounds-spec-right.md](2026-06-20-mdp01-seven-rounds-spec-right.md) | 2026-06-20 | OversightGateService SPI extraction spec; thin delegate vs split-class; ChainedReactiveActionRiskClassifier to engine-api; ProvisionContext CI break |
 | [2026-06-17-mdp01-examples-implementation.md](2026-06-17-mdp01-examples-implementation.md) | 2026-06-17 | SmallRye SRCFG00040 empty-string gotcha; @Blocking event-loop deadlock; agentId over keyword gating; DispatchResult silent compile break |
 | [2026-06-12-mdp01-multi-tenant-tenancyid-propagation.md](2026-06-12-mdp01-multi-tenant-tenancyid-propagation.md) | 2026-06-12 | CrossTenantMessageStore for gate fulfillment; @DefaultBean CDI ambiguity; AgentKey composite key; delivery webhook tenancyId bootstrapping |
 | [2026-06-09-mdp02-silent-failure-blocking-code.md](2026-06-09-mdp02-silent-failure-blocking-code.md) | 2026-06-09 | Reactive SPI variants; initChannel() silent-loss bug in blocking provider; memoize eviction ordering; single gate flag |
