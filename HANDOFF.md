@@ -1,37 +1,40 @@
-# Handoff — 2026-06-17
+# Handoff — 2026-06-22
 
-**Head commit (project):** e137df1 — feat(examples): add DemoGateClassifier, ExamplePoller, ExampleSetup, ExampleController + examples/ directory — Closes #35
-**Head commit (workspace):** workspace main
+**Head commit (project):** `7d1a851` — refactor(#38): replace OpenClawNormativeLayout with NormativeChannelLayout from casehub-engine-api
 
 ## What Changed This Session
 
-Implemented and closed #35 — the examples directory for casehub-openclaw.
+Implemented and closed openclaw#38 as part of parent#93 (extract normative channel layout).
 
-- **Java production code** — `app/example/` package: `DemoGateClassifier` (gates on agentId not keyword), `ExamplePoller` (@Transactional JPA delegate), `ExampleSetup` (@Transactional channel/agent setup), `ExampleController` (@Blocking JAX-RS handler with FULFILLED/DECLINED/DELEGATED/timeout handling)
-- **Tests** — 22 new tests; 99 total in app module passing. Pre-existing `DispatchResult` constructor mismatch fixed in 5 test files.
-- **examples/ directory** — 3 docker-compose stacks, 6 Python mock servers, scenario/approve scripts, system-prompt.md files per agent, SKILL.md files, READMEs
-- **Docs** — CLAUDE.md and ARC42STORIES.MD updated; casehubio/parent#262 filed for deep-dive sync
-- **Squash** — 10 commits → 2 clean commits on casehubio/openclaw main
-- **Garden** — 2 entries: SmallRye Config SRCFG00040 empty-string-as-null gotcha; @Blocking required on quarkus-rest polling handlers
+**Deleted:**
+- `OpenClawNormativeLayout` (replaced by `NormativeChannelLayout` from engine-api)
+- `OpenClawNormativeLayoutTest`
+- `docs/protocols/casehub/normative-layout-single-source.md` (promoted to garden as platform protocol)
+
+**Updated:**
+- `OpenClawCaseChannelProvider` — `layout.channelsFor(caseId, null)` + `orElseThrow` for unknown purposes (was silent null fallback). New test: `openChannel_unknownPurpose_throwsIllegalArgumentException`.
+- `ReactiveOpenClawCaseChannelProvider` — `initializeLayout` refactored to iterate `List<ChannelSpec>` directly; `openOrCreate(UUID, String)` → `openOrCreate(UUID, CaseChannelLayout.ChannelSpec)` (eliminates second map lookup).
+
+150 tests green.
 
 ## Immediate Next Step
 
-Start a new issue — top candidate is **#31** (extract `OversightGateService` to `casehub-engine-api`, L/High — design required before any code). Run `/work` to begin.
+Start a new issue — top candidates:
+- **openclaw#39** — update ARC42STORIES.MD for OpenClawNormativeLayout removal
+- **openclaw#31** — extract OversightGateService to casehub-engine-api (L/High, design required)
+
+Run `/work` to begin.
 
 ## What's Left
 
-- `qhorus#250` — `CommitmentService.extendDeadline()` to remove `casehub_block` direct mutation · S · Low · peer repo
-- `casehubio/parent#215` — reactive SPI doc sync for `casehub-openclaw.md` · XS · Low · awaiting parent session
-- `casehubio/parent#262` — `docs/repos/casehub-openclaw.md` needs examples/ + app/example/ documentation · XS · Low
+- `qhorus#250` — CommitmentService.extendDeadline() · S · Low · peer repo
+- `casehubio/parent#215` — reactive SPI doc sync for casehub-openclaw.md · XS · Low
+- `casehubio/parent#262` — docs/repos/casehub-openclaw.md needs examples/ documentation · XS · Low
+- `openclaw#39` — ARC42STORIES.MD update for mesh SPI migration · XS · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #31 | Extract `OversightGateService` to `casehub-engine-api` | L | High | Known PLATFORM.md violation; brainstorm + engine session coordination required before any code |
-
-## References
-
-- Blog: `blog/2026-06-17-mdp01-examples-implementation.md`
-- Spec: `docs/superpowers/specs/2026-06-16-examples-design.md` (final — iteration 8)
-- Examples: `examples/` — README.md per example
+| #39 | Update ARC42STORIES.MD for OpenClawNormativeLayout removal | XS | Low | Quick doc update |
+| #31 | Extract OversightGateService to casehub-engine-api | L | High | Brainstorm + engine coordination required |
