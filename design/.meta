@@ -1,0 +1,9 @@
+branch: issue-46-plannedaction-import-fix
+project-sha: a6911ad1fd290d5a01c40c7e8bf4467c52da63c6
+date: 2026-06-23
+issue: 46
+issue-repo: casehubio/openclaw
+covers: 46,45
+flyway-next-v: none
+design-repo: workspace
+design-section-hashes: 
