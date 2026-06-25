@@ -1,5 +1,5 @@
-# Branch Closed: issue-46-plannedaction-import-fix
+# Branch Closed: issue-49-direct-call-bridge
 
-**Date:** 2026-06-23
-**Issues:** 46,45
+**Date:** 2026-06-25
+**Issues:** 49
 **Status:** merged to main
