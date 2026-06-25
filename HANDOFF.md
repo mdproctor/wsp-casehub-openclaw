@@ -1,46 +1,45 @@
-# Handoff — 2026-06-23
+# Handoff — 2026-06-25
 
-**Head commit (project):** e17f3bf — fix(casehub): PlannedAction SNAPSHOT break — compile against engine main HEAD
+**Head commit (project):** 47f1dda — feat(#49): add DirectCallBridge — synchronous webhook bridge for AgentExec workers
 **Head commit (workspace):** workspace main
 
 ## What Changed This Session
 
-Closed #46 and #45 on branch `issue-46-plannedaction-import-fix`.
+Closed #49 on branch `issue-49-direct-call-bridge` — added DirectCallBridge infrastructure so AgentExec workers can call `/hooks/agent` and get structured results back synchronously.
 
-- **SNAPSHOT investigation** — the published casehub-engine-api SNAPSHOT was built from an interim state that removed `PlannedAction` from `io.casehub.api.spi`. Local engine `main` still has the 5-field record. Local code already compiled correctly; the fix was diagnostic, not a code change.
-- **engine#563** — GateDecision → GateOutcome rename proposal (naming distinction between policy decision and operational result)
-- **engine#565** — filed to re-publish engine-api SNAPSHOT from local main HEAD; CI will stay red on #46 until this lands
-- **#31 rescoped** — OversightGateService interface already exists in engine-api; S/Low job not L/High. Waiting on engine#563 for the GateOutcome rename before wiring.
-- **Minor improvements** — `classifyMostRestrictive()` parameter marked `final`; DemoGateClassifierTest uses `PlannedAction.of()` factory
-- **ARC42STORIES.MD §10** — decision record for engine-api local HEAD strategy
+- **DirectCallBridge** — `CompletableFuture` registry keyed by correlationId; `DirectCallDeliveryResource` receives webhook callbacks at `POST /openclaw/direct-call/{correlationId}`
+- **OpenClawAgentProvider** — implements `AgentProvider` (platform SPI); fires `/hooks/agent` via `invokeDirect()`, emits `Multi<AgentEvent>` on webhook completion
+- **OpenClawChatModel** — thin langchain4j bridge with schema-in-prompt serialization for structured output
+- **API compatibility** — fixed pre-existing compilation breaks from upstream engine-api changes (PlannedAction → casehub-worker-api, ClassificationContext, ChannelCreateRequest)
+- **casehub-blocks** — architectural discussion: identified need for a reusable building blocks repo (parent#310). Oversight gate lifecycle (#31) parked in favour of blocks extraction.
+- **parent#311** — filed for PLATFORM.md and deep-dive doc sync
 
 ## Immediate Next Step
 
-Trigger a CI run on engine `main` to re-publish the casehub-engine-api SNAPSHOT (engine#565). Once published, openclaw CI will go green on #46 without any further code changes.
+casehub-life#38 is now unblocked — add `casehub-openclaw-core` + `casehub-openclaw-casehub` as dependencies and wire `OpenClawChatModel` via a factory to convert 32 stub workers to real OpenClaw agents.
 
 ## What's Left
 
-- `engine#565` — re-publish engine-api SNAPSHOT from main · XS · Low · **peer repo — user action required**
+- `openclaw#50` — DirectCallBridge hardening: future eviction, module placement review · S · Low
+- `openclaw#31` — parked, superseded by parent#310 (casehub-blocks oversight gate extraction) · M · Med
+- `parent#310` — Epic: casehub-blocks repo creation + pattern extraction · L · High
+- `parent#311` — PLATFORM.md and deep-dive sync for DirectCallBridge · XS · Low
 - `engine#563` — GateDecision → GateOutcome rename · S · Low · peer repo
-- `openclaw#31` — wire OversightGateService to implement engine-api interface; drop local GateDecision · S · Low · blocked on engine#563
 - `openclaw#43` — MCP endpoint auth · M · High
-- `openclaw#42` — plugin endpoint tenant isolation (blocked upstream) · M · High
-- `openclaw#44` — delivery webhook signing (blocked upstream) · S · Med
-- `qhorus#301` — stale QhorusInboundCurrentPrincipal Javadoc · XS · Low · peer repo
-- `parent#303` — remove stale deferred note · XS · Low · peer repo
+- `openclaw#42` — plugin endpoint tenant isolation · M · High
+- `openclaw#44` — delivery webhook signing · S · Med
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #31 | Wire OversightGateService to engine-api interface | S | Low | Blocked on engine#563 |
+| #50 | DirectCallBridge hardening | S | Low | Future eviction, module placement |
 | #37 | Migrate Worker imports to casehub-worker-api | S | Low | Open |
 | #36 | Read agent provider config from DeploymentProviderConfigStore | M | Med | Open |
 | #43 | MCP endpoint auth | M | High | Open |
 
-**Paused:** `issue-31-extract-oversight-gate-service` on pause stack.
+**Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
 ## References
 
-- Blog: `blog/2026-06-23-mdp02-plannedaction-api-migration.md`
-- Garden: GE-20260623-b460d4 (ide_refactor_rename on import statements)
+- Blog: `blog/2026-06-23-mdp02-plannedaction-api-migration.md` (previous session)
