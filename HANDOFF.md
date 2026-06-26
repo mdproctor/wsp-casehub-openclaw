@@ -1,45 +1,46 @@
-# Handoff — 2026-06-25
+# Handoff — 2026-06-26
 
-**Head commit (project):** 47f1dda — feat(#49): add DirectCallBridge — synchronous webhook bridge for AgentExec workers
-**Head commit (workspace):** workspace main
+**Head commit (project):** 5dcc01e — docs: sync spec code block — toMillis precision
+**Head commit (workspace):** d4323f7 — docs: add diary entry
+**Branch:** `issue-50-hardening-config-auth` (covers #50, #36, #43)
 
 ## What Changed This Session
 
-Closed #49 on branch `issue-49-direct-call-bridge` — added DirectCallBridge infrastructure so AgentExec workers can call `/hooks/agent` and get structured results back synchronously.
+Implemented all three issues on branch `issue-50-hardening-config-auth`. Code complete, reviewed, full build green. **Branch is NOT merged — work-end not yet run.**
 
-- **DirectCallBridge** — `CompletableFuture` registry keyed by correlationId; `DirectCallDeliveryResource` receives webhook callbacks at `POST /openclaw/direct-call/{correlationId}`
-- **OpenClawAgentProvider** — implements `AgentProvider` (platform SPI); fires `/hooks/agent` via `invokeDirect()`, emits `Multi<AgentEvent>` on webhook completion
-- **OpenClawChatModel** — thin langchain4j bridge with schema-in-prompt serialization for structured output
-- **API compatibility** — fixed pre-existing compilation breaks from upstream engine-api changes (PlannedAction → casehub-worker-api, ClassificationContext, ChannelCreateRequest)
-- **casehub-blocks** — architectural discussion: identified need for a reusable building blocks repo (parent#310). Oversight gate lifecycle (#31) parked in favour of blocks extraction.
-- **parent#311** — filed for PLATFORM.md and deep-dive doc sync
+- **#50 DirectCallBridge hardening** — `orTimeout` + `whenComplete` self-eviction; `DirectCallDeliveryResource` moved from `casehub/` to `app/`; unused `agentId` removed from payload
+- **#36 AgentProviderConfigSource SPI** — pluggable agent config; `@DefaultBean` reads from `application.properties`; both provisioners + ExampleController migrated
+- **#43 MCP endpoint auth** — `quarkus.http.auth.permission.mcp` HTTP security policy; `@RolesAllowed` returns MCP `-32001` not HTTP 401
+- **casehub-ops#12 filed** — `agentIds()` enumeration for DeploymentProviderConfigStore
+- **openclaw#37 closed** — Worker import migration was already done during #49
 
 ## Immediate Next Step
 
-casehub-life#38 is now unblocked — add `casehub-openclaw-core` + `casehub-openclaw-casehub` as dependencies and wire `OpenClawChatModel` via a factory to convert 32 stub workers to real OpenClaw agents.
+Run `/work-end` on branch `issue-50-hardening-config-auth`. The branch is implementation-complete, code-reviewed, and build-verified. work-end will: rebase onto main, squash, push to fork, close #50/#36/#43, merge journal, promote artifacts, write final handover.
+
+**Pre-close sweep already done this session:** forage (1 GE submitted), protocol sweep (nothing new), update-claude-md (already current), implementation-doc-sync (checked, nothing stale), ADR (none needed), diary written. Do NOT re-run these — go straight to work-end Step 2 (Flyway re-scan) after confirming the branch summary.
 
 ## What's Left
 
-- `openclaw#50` — DirectCallBridge hardening: future eviction, module placement review · S · Low
 - `openclaw#31` — parked, superseded by parent#310 (casehub-blocks oversight gate extraction) · M · Med
 - `parent#310` — Epic: casehub-blocks repo creation + pattern extraction · L · High
 - `parent#311` — PLATFORM.md and deep-dive sync for DirectCallBridge · XS · Low
 - `engine#563` — GateDecision → GateOutcome rename · S · Low · peer repo
-- `openclaw#43` — MCP endpoint auth · M · High
 - `openclaw#42` — plugin endpoint tenant isolation · M · High
-- `openclaw#44` — delivery webhook signing · S · Med
+- `openclaw#44` — delivery endpoint hardening — validate signed webhook payloads · S · Med
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #50 | DirectCallBridge hardening | S | Low | Future eviction, module placement |
-| #37 | Migrate Worker imports to casehub-worker-api | S | Low | Open |
-| #36 | Read agent provider config from DeploymentProviderConfigStore | M | Med | Open |
-| #43 | MCP endpoint auth | M | High | Open |
+| #42 | Plugin endpoint tenant isolation | M | High | Service-account token for /openclaw/plugin/* |
+| #44 | Delivery endpoint hardening — webhook signing | S | Med | Open |
+| ops#12 | Add agentIds() to DeploymentProviderConfigStore | XS | Low | Unblocks deployment adapter for #36's SPI |
 
 **Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
 ## References
 
-- Blog: `blog/2026-06-23-mdp02-plannedaction-api-migration.md` (previous session)
+- Spec: `docs/specs/2026-06-26-hardening-config-auth-design.md`
+- Blog: `blog/2026-06-26-mdp01-three-hardening-passes.md`
+- Garden: `GE-20260626-5074cf` — CompletableFuture.orTimeout() toSeconds truncation
