@@ -1,3 +1,5 @@
+*Updated: parent#311, engine#563 closed — removed from backlog.*
+
 # Handoff — 2026-06-27
 
 **Head commit (project):** 6e3ccd3 — docs: sync ARC42STORIES.MD — stale scan at session wrap
@@ -17,8 +19,6 @@ Pick next work from What's Next. casehub-life#38 is now unblocked — `OpenClawC
 
 - `openclaw#31` — parked, superseded by parent#310 (casehub-blocks extraction) · M · Med
 - `parent#310` — Epic: casehub-blocks repo creation + pattern extraction · L · High
-- `parent#311` — PLATFORM.md and deep-dive sync for DirectCallBridge · XS · Low
-- `engine#563` — GateDecision → GateOutcome rename · S · Low · peer repo
 - `openclaw#42` — plugin endpoint tenant isolation · M · High
 - `openclaw#44` — delivery endpoint hardening — webhook signing · S · Med
 
