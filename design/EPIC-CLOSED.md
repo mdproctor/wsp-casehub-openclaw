@@ -1,5 +1,5 @@
-# Branch Closed: issue-50-hardening-config-auth
+# Branch Closed: issue-42-plugin-tenant-and-cleanup
 
-**Date:** 2026-06-27
-**Issues:** 50,36,43
+**Date:** 2026-06-28
+**Issues:** 42,47,48
 **Status:** merged to main
