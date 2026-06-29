@@ -1,6 +1,8 @@
+*Updated: life#38 closed — removed from Immediate Next Step.*
+
 # Handoff — 2026-06-28
 
-**Head commit (project):** fcac332 — feat(#42): plugin endpoint tenant isolation
+**Head commit (project):** aeee484 — fix(#55): align with platform#111 rename
 **Head commit (workspace):** workspace main
 
 ## What Changed This Session
@@ -13,7 +15,7 @@ ARC42STORIES.MD §10 synced. Design spec committed. Blog entry published. 3 gard
 
 ## Immediate Next Step
 
-Pick next work from What's Next. casehub-life#38 remains unblocked — `OpenClawChatModel` + `AgentProviderConfigSource` ready for 32 stub workers.
+Pick next work from What's Next.
 
 ## What's Left
 
