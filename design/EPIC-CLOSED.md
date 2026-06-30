@@ -1,5 +1,5 @@
-# Branch Closed: issue-50-hardening-config-auth
+# Branch Closed: issue-56-provisioner-config-registry
 
-**Date:** 2026-06-27
-**Issues:** 50,36,43
+**Date:** 2026-06-30
+**Issues:** 56
 **Status:** merged to main
