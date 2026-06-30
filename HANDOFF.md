@@ -1,17 +1,17 @@
-*Updated: life#38 closed — removed from Immediate Next Step.*
+# Handoff — 2026-06-30
 
-# Handoff — 2026-06-28
-
-**Head commit (project):** aeee484 — fix(#55): align with platform#111 rename
+**Head commit (project):** 5b0429d — feat(#56): migrate AgentProviderConfigSource to ProvisionerConfigRegistry
 **Head commit (workspace):** workspace main
 
 ## What Changed This Session
 
-Closed branch `issue-42-plugin-tenant-and-cleanup` via work-end. #42, #47, #48 all closed. Squashed 11 → 3 commits, rebased onto main, pushed. Full build green (126 tests, 0 failures).
+Closed branch `issue-56-provisioner-config-registry` via work-end. #56 closed. Squashed 10 → 1 commit, pushed to main.
 
-Key implementation: `PluginTokenBridgeMechanism` (custom `HttpAuthenticationMechanism` with path guard + null credential transport — framework constraints documented in 3 garden entries), `OpenClawCurrentPrincipal @Priority(150)` (prevents `MissingTenancyException` for non-OIDC SecurityIdentity), `@RolesAllowed(PLUGIN)` on `PluginCommitResource`, TypeScript bearer token support.
+Resumed and re-paused `issue-31-extract-oversight-gate-service` — analysis confirmed the oversight gate extraction touches engine-api, engine, and openclaw (SPIs move to blocks, concrete gate from openclaw). Branch remains paused pending blocks-side implementation.
 
-ARC42STORIES.MD §10 synced. Design spec committed. Blog entry published. 3 garden entries submitted (auth-mechanism/@TestSecurity conflict, Bearer transport ambiguity, production-only tenancyId regression).
+Key implementation: `OpenClawAgentConfigResolver` — typed adapter wrapping `ProvisionerConfigRegistry` with `AgentConfig` records. Union semantics (registry + local config, registry wins per-agent). Startup validation via `@Observes StartupEvent`. Three files deleted (`AgentProviderConfigSource`, `ConfigFileAgentProviderConfigSource`, test). Design spec underwent adversarial review (3 rounds, 7 verified fixes — union semantics, `fromRaw()` typed boundary, startup validation all added during review).
+
+Blog entry published: `2026-06-30-mdp01-typed-adapters-untyped-registries.md`.
 
 ## Immediate Next Step
 
@@ -23,7 +23,7 @@ Pick next work from What's Next.
 - `parent#310` — Epic: casehub-blocks repo creation + pattern extraction · L · High
 - `openclaw#51` — protect `/channel-context/{agentId}` with plugin auth · S · Low
 - `openclaw#52` — migrate plugin auth from bridge token to OIDC · M · Med · blocked by upstream
-- `openclaw#53` — PluginTokenBridgeMechanism quality nits (timing-safe, constructor injection) · XS · Low
+- `openclaw#53` — PluginTokenBridgeMechanism quality nits · XS · Low
 - `platform#121` — OidcCurrentPrincipal handle non-OIDC SecurityIdentity types · S · Med
 - `parent#318` — sync casehub-openclaw deep-dive for plugin auth changes · XS · Low
 
@@ -40,6 +40,5 @@ Pick next work from What's Next.
 
 ## References
 
-- Spec: `docs/specs/2026-06-27-plugin-auth-cleanup-design.md`
-- Blog: `blog/2026-06-28-mdp01-auth-mechanism-traps.md`
-- Garden: `GE-20260628-04a38c`, `GE-20260628-f4177d`, `GE-20260628-919f9f`
+- Spec: `docs/specs/2026-06-29-provisioner-config-registry-design.md`
+- Blog: `blog/2026-06-30-mdp01-typed-adapters-untyped-registries.md`
