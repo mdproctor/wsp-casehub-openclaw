@@ -1,31 +1,30 @@
-# Handoff — 2026-06-30
+# Handoff — 2026-07-06
 
-**Head commit (project):** 5b0429d — feat(#56): migrate AgentProviderConfigSource to ProvisionerConfigRegistry
-**Head commit (workspace):** workspace main
+**Branch:** `issue-58-demo-ui` (11 commits ahead of main)
+**Head commit (project):** bb261fa — docs: spec revised — review round 3
+**Head commit (workspace):** bcdd42a — journal: technology pivot, CaseDefinition analysis
 
 ## What Changed This Session
 
-Closed branch `issue-56-provisioner-config-registry` via work-end. #56 closed. Squashed 10 → 1 commit, pushed to main.
+Brainstormed demo UI (#58), designed spec, ran adversarial review (5 rounds, 21 issues). Implemented Tasks 1-3 (ScenarioMetadataProvider, ScenarioStateStore, ScenarioObserver) via subagent-driven development. Hit pre-existing Qhorus API compilation errors — fixed 26 files (runtime.* → api.*, record accessors). Closes #62.
 
-Resumed and re-paused `issue-31-extract-oversight-gate-service` — analysis confirmed the oversight gate extraction touches engine-api, engine, and openclaw (SPIs move to blocks, concrete gate from openclaw). Branch remains paused pending blocks-side implementation.
-
-Key implementation: `OpenClawAgentConfigResolver` — typed adapter wrapping `ProvisionerConfigRegistry` with `AgentConfig` records. Union semantics (registry + local config, registry wins per-agent). Startup validation via `@Observes StartupEvent`. Three files deleted (`AgentProviderConfigSource`, `ConfigFileAgentProviderConfigSource`, test). Design spec underwent adversarial review (3 rounds, 7 verified fixes — union semantics, `fromRaw()` typed boundary, startup validation all added during review).
-
-Blog entry published: `2026-06-30-mdp01-typed-adapters-untyped-registries.md`.
+Discovered blocks-ui — pivoted from casehub-pages DSL + WebSocket to Lit Web Components + blocks-ui design language + SSE. Revised spec, ran second adversarial review (4 rounds, 23 issues). Explored "scenarios" as a platform concept — concluded Scenario == CaseDefinition (already exists in engine). Wrote revised 6-task implementation plan.
 
 ## Immediate Next Step
 
-Pick next work from What's Next.
+Resume branch `issue-58-demo-ui`. Run `subagent-driven-development` against the revised plan at `.claude/plans/generic-whistling-robin.md`. Reset `.superpowers/sdd/progress.md` — the original plan's progress (Tasks 1-3) is stale; the revised plan's Task 1 refactors that work.
 
 ## What's Left
 
-- `openclaw#31` — parked, superseded by parent#310 (casehub-blocks extraction) · M · Med
-- `parent#310` — Epic: casehub-blocks repo creation + pattern extraction · L · High
-- `openclaw#51` — protect `/channel-context/{agentId}` with plugin auth · S · Low
-- `openclaw#52` — migrate plugin auth from bridge token to OIDC · M · Med · blocked by upstream
+- Revised plan Task 1: CaseExecutionEvent sealed interface + refactor ScenarioStateStore · M · Med
+- Revised plan Task 2: Extend ScenarioObserver for gate detection · S · Low
+- Revised plan Task 3: ScenarioExecutionService + ExampleSetup refactoring · M · Med
+- Revised plan Task 4: SSE + REST endpoints · M · Med
+- Revised plan Task 5: Quinoa frontend — 6 Lit Web Components · L · Med
+- Revised plan Task 6: Docker integration + ExampleController deprecation · S · Low
+- `openclaw#31` — parked, superseded by parent#310 · M · Med
+- `openclaw#51` — channel-context endpoint auth · S · Low
 - `openclaw#53` — PluginTokenBridgeMechanism quality nits · XS · Low
-- `platform#121` — OidcCurrentPrincipal handle non-OIDC SecurityIdentity types · S · Med
-- `parent#318` — sync casehub-openclaw deep-dive for plugin auth changes · XS · Low
 
 ## What's Next
 
@@ -33,12 +32,14 @@ Pick next work from What's Next.
 |---|-------------|-------|------------|-------|
 | #44 | Delivery endpoint hardening — webhook signing | S | Med | Blocked by upstream OpenClaw |
 | #51 | Channel-context endpoint auth | S | Low | Reuse bridge mechanism pattern |
-| #53 | PluginTokenBridgeMechanism quality nits | XS | Low | Timing-safe comparison, constructor injection |
-| ops#12 | Add agentIds() to DeploymentProviderConfigStore | XS | Low | Unblocks deployment adapter |
+| #53 | PluginTokenBridgeMechanism quality nits | XS | Low | |
 
 **Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
 ## References
 
-- Spec: `docs/specs/2026-06-29-provisioner-config-registry-design.md`
-- Blog: `blog/2026-06-30-mdp01-typed-adapters-untyped-registries.md`
+- Spec: `docs/specs/2026-06-30-demo-ui-design.md` (revised 2026-07-06)
+- Plan: `.claude/plans/generic-whistling-robin.md` (revised 2026-07-06)
+- Design journal: `design/JOURNAL.md` (§1-§3)
+- Garden entry: `GE-20260706-53e221` (Qhorus SNAPSHOT drift gotcha)
+- Issue: casehubio/openclaw#58 (detailed status in issue body)
