@@ -1,30 +1,21 @@
 # Handoff — 2026-07-06
 
-**Branch:** `issue-58-demo-ui` (11 commits ahead of main)
-**Head commit (project):** bb261fa — docs: spec revised — review round 3
-**Head commit (workspace):** bcdd42a — journal: technology pivot, CaseDefinition analysis
+**Branch:** `issue-58-demo-ui` — **CLOSED**, landed as `cec7ec4` on main
+**Issues:** #58 closed, #62 closed
 
 ## What Changed This Session
 
-Brainstormed demo UI (#58), designed spec, ran adversarial review (5 rounds, 21 issues). Implemented Tasks 1-3 (ScenarioMetadataProvider, ScenarioStateStore, ScenarioObserver) via subagent-driven development. Hit pre-existing Qhorus API compilation errors — fixed 26 files (runtime.* → api.*, record accessors). Closes #62.
+Implemented the full Demo UI epic (#58) via subagent-driven development (6-task plan). CaseExecutionEvent sealed interface replaced WireMessage. ScenarioStateStore rewritten with typed maps. ScenarioObserver extended for gate detection. ScenarioExecutionService on virtual threads. SSE + REST endpoints. 6 Lit Web Components via Quinoa. DevBeanProvider for quarkus:dev. Code review fixed race condition (tryStart) and null safety. Squashed 25 commits → 1 and pushed.
 
-Discovered blocks-ui — pivoted from casehub-pages DSL + WebSocket to Lit Web Components + blocks-ui design language + SSE. Revised spec, ran second adversarial review (4 rounds, 23 issues). Explored "scenarios" as a platform concept — concluded Scenario == CaseDefinition (already exists in engine). Wrote revised 6-task implementation plan.
+Also fixed app test compilation for Qhorus API refactoring (#62) and bumped Quinoa from 2.5.3 → 2.8.3 (HttpBuildTimeConfig removal in Quarkus 3.26+).
 
 ## Immediate Next Step
 
-Resume branch `issue-58-demo-ui`. Run `subagent-driven-development` against the revised plan at `.claude/plans/generic-whistling-robin.md`. Reset `.superpowers/sdd/progress.md` — the original plan's progress (Tasks 1-3) is stale; the revised plan's Task 1 refactors that work.
+Pick next work from the backlog — #44 (webhook signing), #51 (channel-context auth), or #53 (PluginTokenBridgeMechanism nits). All are independent and small.
 
 ## What's Left
 
-- Revised plan Task 1: CaseExecutionEvent sealed interface + refactor ScenarioStateStore · M · Med
-- Revised plan Task 2: Extend ScenarioObserver for gate detection · S · Low
-- Revised plan Task 3: ScenarioExecutionService + ExampleSetup refactoring · M · Med
-- Revised plan Task 4: SSE + REST endpoints · M · Med
-- Revised plan Task 5: Quinoa frontend — 6 Lit Web Components · L · Med
-- Revised plan Task 6: Docker integration + ExampleController deprecation · S · Low
-- `openclaw#31` — parked, superseded by parent#310 · M · Med
-- `openclaw#51` — channel-context endpoint auth · S · Low
-- `openclaw#53` — PluginTokenBridgeMechanism quality nits · XS · Low
+- `openclaw#31` — parked on pause stack, superseded by parent#310 · M · Med
 
 ## What's Next
 
@@ -38,8 +29,6 @@ Resume branch `issue-58-demo-ui`. Run `subagent-driven-development` against the 
 
 ## References
 
-- Spec: `docs/specs/2026-06-30-demo-ui-design.md` (revised 2026-07-06)
-- Plan: `.claude/plans/generic-whistling-robin.md` (revised 2026-07-06)
-- Design journal: `design/JOURNAL.md` (§1-§3)
-- Garden entry: `GE-20260706-53e221` (Qhorus SNAPSHOT drift gotcha)
-- Issue: casehubio/openclaw#58 (detailed status in issue body)
+- Spec: `docs/specs/2026-06-30-demo-ui-design.md`
+- Plan: `docs/plans/2026-07-06-demo-ui.md`
+- Garden entries: GE-20260706-fc6388 (Quinoa version), GE-20260706-be2ef0 (SRCFG00050), GE-20260706-cbd6b2 (DevBeanProvider)
