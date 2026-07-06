@@ -1,5 +1,5 @@
-# Branch Closed: issue-56-provisioner-config-registry
+# Branch Closed: issue-58-demo-ui
 
-**Date:** 2026-06-30
-**Issues:** 56
+**Date:** 2026-07-06
+**Issues:** 58
 **Status:** merged to main
