@@ -1,21 +1,15 @@
-*Updated: #44, #51, #53 closed — removed from backlog.*
+# Handoff — 2026-07-07
 
-# Handoff — 2026-07-06
-
-**Branch:** `issue-58-demo-ui` — **CLOSED**, landed as `cec7ec4` on main
-**Issues:** #58 closed, #62 closed
+**Branch:** `issue-57-hardening-cleanup` — **CLOSED**, landed as `547a542` on main
+**Issues:** #57 closed, #54 closed, #64 closed
 
 ## What Changed This Session
 
-Implemented the full Demo UI epic (#58) via subagent-driven development (6-task plan). CaseExecutionEvent sealed interface replaced WireMessage. ScenarioStateStore rewritten with typed maps. ScenarioObserver extended for gate detection. ScenarioExecutionService on virtual threads. SSE + REST endpoints. 6 Lit Web Components via Quinoa. DevBeanProvider for quarkus:dev. Code review fixed race condition (tryStart) and null safety. Squashed 25 commits → 1 and pushed.
-
-Also fixed app test compilation for Qhorus API refactoring (#62) and bumped Quinoa from 2.5.3 → 2.8.3 (HttpBuildTimeConfig removal in Quarkus 3.26+).
-
-Auth hardening (#53, #51, #44) also landed: timing-safe tokens, channel-context auth, delivery token validation.
+Closed three S/XS hardening issues in a single branch. Added deliveryGuarantee() test (#57). Removed OpenClawCurrentPrincipal workaround — PluginTokenBridgeMechanism now stamps tenancyId as SecurityIdentity attribute, platform#121 handles the rest (#54). Retrofitted @RolesAllowed(ADMIN) on demo UI mutation endpoints (#64). Code review: 0 findings.
 
 ## Immediate Next Step
 
-Pick next work from the backlog — all prior What's Next items are closed.
+Pick from open backlog — #63 (registry 1:N, M/Med) is the next substantial feature. #52 blocked by upstream OpenClaw OIDC.
 
 ## What's Left
 
@@ -23,12 +17,17 @@ Pick next work from the backlog — all prior What's Next items are closed.
 
 ## What's Next
 
-Backlog cleared. Check GitHub issues for new work.
+| # | Description | Scale | Complexity | Notes |
+|---|-------------|-------|------------|-------|
+| #63 | OpenClawAgentRegistry 1:N — multiple agents per model family | M | Med | |
+| #60 | Shared component extraction to @casehubio/pages-casehub | M | Med | |
+| #59 | Playwright/E2E test automation for demo UI | M | Med | |
+| #52 | Migrate plugin auth from bridge token to OIDC | S | Med | Blocked by upstream OpenClaw |
+| #61 | File casehub-pages issues for action button + modal | XS | Low | Admin/tracking |
+| #18 | Track: OpenClaw after_tool_call hook not firing | — | — | Upstream blocker |
 
 **Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
 ## References
 
-- Spec: `docs/specs/2026-06-30-demo-ui-design.md`
-- Plan: `docs/plans/2026-07-06-demo-ui.md`
-- Garden entries: GE-20260706-fc6388 (Quinoa version), GE-20260706-be2ef0 (SRCFG00050), GE-20260706-cbd6b2 (DevBeanProvider)
+*Unchanged — `git show HEAD~1:HANDOFF.md`*
