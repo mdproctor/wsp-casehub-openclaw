@@ -1,3 +1,5 @@
+*Updated: #44, #51, #53 closed — removed from backlog.*
+
 # Handoff — 2026-07-06
 
 **Branch:** `issue-58-demo-ui` — **CLOSED**, landed as `cec7ec4` on main
@@ -9,9 +11,11 @@ Implemented the full Demo UI epic (#58) via subagent-driven development (6-task 
 
 Also fixed app test compilation for Qhorus API refactoring (#62) and bumped Quinoa from 2.5.3 → 2.8.3 (HttpBuildTimeConfig removal in Quarkus 3.26+).
 
+Auth hardening (#53, #51, #44) also landed: timing-safe tokens, channel-context auth, delivery token validation.
+
 ## Immediate Next Step
 
-Pick next work from the backlog — #44 (webhook signing), #51 (channel-context auth), or #53 (PluginTokenBridgeMechanism nits). All are independent and small.
+Pick next work from the backlog — all prior What's Next items are closed.
 
 ## What's Left
 
@@ -19,11 +23,7 @@ Pick next work from the backlog — #44 (webhook signing), #51 (channel-context 
 
 ## What's Next
 
-| # | Description | Scale | Complexity | Notes |
-|---|-------------|-------|------------|-------|
-| #44 | Delivery endpoint hardening — webhook signing | S | Med | Blocked by upstream OpenClaw |
-| #51 | Channel-context endpoint auth | S | Low | Reuse bridge mechanism pattern |
-| #53 | PluginTokenBridgeMechanism quality nits | XS | Low | |
+Backlog cleared. Check GitHub issues for new work.
 
 **Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
