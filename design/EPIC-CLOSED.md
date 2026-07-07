@@ -1,5 +1,5 @@
-# Branch Closed: issue-56-provisioner-config-registry
+# Branch Closed: issue-57-hardening-cleanup
 
-**Date:** 2026-06-30
-**Issues:** 56
+**Date:** 2026-07-07
+**Issues:** 57,54,64
 **Status:** merged to main
