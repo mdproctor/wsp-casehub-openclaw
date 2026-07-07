@@ -2,6 +2,8 @@
 
 | File | Date | Title |
 |------|------|-------|
+| [2026-06-28-mdp01-auth-mechanism-traps.md](2026-06-28-mdp01-auth-mechanism-traps.md) | 2026-06-28 | When your auth mechanism breaks everyone else's tests |
+| [2026-06-26-mdp01-three-hardening-passes.md](2026-06-26-mdp01-three-hardening-passes.md) | 2026-06-26 | orTimeout truncation gotcha; DirectCallDeliveryResource module move; AgentProviderConfigSource SPI; MCP auth via HTTP policy vs @RolesAllowed |
 | [2026-06-23-mdp02-plannedaction-api-migration.md](2026-06-23-mdp02-plannedaction-api-migration.md) | 2026-06-23 | #31 interface already existed; GateDecision→GateOutcome rename filed; PlannedAction/ClassificationContext split; ide_refactor_rename on imports renames the class |
 | [2026-06-23-mdp01-oidc-wiring-auth-retrofit.md](2026-06-23-mdp01-oidc-wiring-auth-retrofit.md) | 2026-06-23 | @PermitAll for system-to-system endpoints; QhorusInboundCurrentPrincipal CDI ambiguity; stale Javadoc from bytecode; deferred MCP and plugin auth |
 | [2026-06-17-mdp01-examples-implementation.md](2026-06-17-mdp01-examples-implementation.md) | 2026-06-17 | SmallRye SRCFG00040 empty-string gotcha; @Blocking event-loop deadlock; agentId over keyword gating; DispatchResult silent compile break |
