@@ -1,32 +1,29 @@
-# Handoff — 2026-07-07
+# Handoff — 2026-07-08
 
-**Branch:** `issue-57-hardening-cleanup` — **CLOSED**, landed as `547a542` on main
-**Issues:** #57 closed, #54 closed, #64 closed
+**Branch:** `issue-65-wire-oversight-spi` — **CLOSED**, landed as `dd8551e` on main
+**Issues:** #65 closed
 
 ## What Changed This Session
 
-Closed three S/XS hardening issues in a single branch. Added deliveryGuarantee() test (#57). Removed OpenClawCurrentPrincipal workaround — PluginTokenBridgeMechanism now stamps tenancyId as SecurityIdentity attribute, platform#121 handles the rest (#54). Retrofitted @RolesAllowed(ADMIN) on demo UI mutation endpoints (#64). Code review: 0 findings.
+Wired openclaw's `OversightGateService` to the engine-api SPI (`implements io.casehub.api.spi.OversightGateService`). Cleared orphaned #31 pause stack entry — the SPI extraction to engine-api already happened; this completed the wiring. Also filed cross-repo UI coordination: blocks-ui#35 (parent migration epic), blocks-ui#36 (openclaw child epic), casehub-pages#138 (action button), casehub-pages#139 (modal), and closed openclaw#61.
 
 ## Immediate Next Step
 
-Pick from open backlog — #63 (registry 1:N, M/Med) is the next substantial feature. #52 blocked by upstream OpenClaw OIDC.
+Pick from open backlog — #63 (OpenClawAgentRegistry 1:N, M/Med) is the next substantial feature.
 
 ## What's Left
 
-- `openclaw#31` — parked on pause stack, superseded by parent#310 · M · Med
+*Nothing trailing — #31 pause stack cleared.*
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
 | #63 | OpenClawAgentRegistry 1:N — multiple agents per model family | M | Med | |
-| #60 | Shared component extraction to @casehubio/pages-casehub | M | Med | |
+| #60 | Refactor demo UI to consume blocks-ui | M | Med | Blocked on AML promoting case-workbench (blocks-ui#36) |
 | #59 | Playwright/E2E test automation for demo UI | M | Med | |
 | #52 | Migrate plugin auth from bridge token to OIDC | S | Med | Blocked by upstream OpenClaw |
-| #61 | File casehub-pages issues for action button + modal | XS | Low | Admin/tracking |
 | #18 | Track: OpenClaw after_tool_call hook not firing | — | — | Upstream blocker |
-
-**Paused:** `issue-31-extract-oversight-gate-service` on pause stack (superseded by parent#310).
 
 ## References
 
