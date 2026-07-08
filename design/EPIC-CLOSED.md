@@ -1,5 +1,5 @@
-# Branch Closed: issue-56-provisioner-config-registry
+# Branch Closed: issue-65-wire-oversight-spi
 
-**Date:** 2026-06-30
-**Issues:** 56
+**Date:** 2026-07-08
+**Issues:** 65
 **Status:** merged to main
