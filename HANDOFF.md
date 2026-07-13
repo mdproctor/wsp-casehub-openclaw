@@ -1,26 +1,28 @@
-# Handoff — 2026-07-08
+# Handoff — 2026-07-13
 
-**Branch:** `issue-65-wire-oversight-spi` — **CLOSED**, landed as `dd8551e` on main
-**Issues:** #65 closed
+**Branch:** main (housekeeping session — no feature branch)
 
 ## What Changed This Session
 
-Wired openclaw's `OversightGateService` to the engine-api SPI (`implements io.casehub.api.spi.OversightGateService`). Cleared orphaned #31 pause stack entry — the SPI extraction to engine-api already happened; this completed the wiring. Also filed cross-repo UI coordination: blocks-ui#35 (parent migration epic), blocks-ui#36 (openclaw child epic), casehub-pages#138 (action button), casehub-pages#139 (modal), and closed openclaw#61.
+Recovered stranded artifacts from 3 closed workspace branches (issue-31, issue-32, issue-4): 1 blog entry, 2 specs, 1 plan. Published all 22 openclaw blog entries to personal-notes (mdproctor.github.io) and casehub-notes (casehubio.github.io). Cleared issue-31 from pause stack. ARC42STORIES.MD stale scan fixed 12 items (engine#402 forward-tense refs, 4 struck-through tech debt/risk rows, platform#121 shipped, L6 skills delivered).
+
+blocks-ui confirmed all components for openclaw #60 are ready — #60 is now unblocked with 4 child issues filed (#66–#69).
 
 ## Immediate Next Step
 
-Pick from open backlog — #63 (OpenClawAgentRegistry 1:N, M/Med) is the next substantial feature.
+Run `/work` and start #60 (demo UI migration to blocks-ui). Pick #66 first — replace `case-execution-view` with split-workbench (S/Low); it sets up the layout for #67 and #68.
 
 ## What's Left
 
-*Nothing trailing — #31 pause stack cleared.*
+- Push project main (1 unpushed commit: ARC42 stale scan + spec recovery) · XS · Low
+- Push workspace main (5 unpushed commits: artifact recovery, blog cleanup, pause stack) · XS · Low
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
+| #60 | Migrate demo UI to blocks-ui components | M | Med | Unblocked — 4 child issues (#66–#69) |
 | #63 | OpenClawAgentRegistry 1:N — multiple agents per model family | M | Med | |
-| #60 | Refactor demo UI to consume blocks-ui | M | Med | Blocked on AML promoting case-workbench (blocks-ui#36) |
 | #59 | Playwright/E2E test automation for demo UI | M | Med | |
 | #52 | Migrate plugin auth from bridge token to OIDC | S | Med | Blocked by upstream OpenClaw |
 | #18 | Track: OpenClaw after_tool_call hook not firing | — | — | Upstream blocker |
