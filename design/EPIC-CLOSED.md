@@ -1,5 +1,5 @@
-# Branch Closed: issue-56-provisioner-config-registry
+# Branch Closed: issue-63-agent-registry-1-to-n
 
-**Date:** 2026-06-30
-**Issues:** 56
+**Date:** 2026-07-18
+**Issues:** 63
 **Status:** merged to main
