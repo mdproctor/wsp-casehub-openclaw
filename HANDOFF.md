@@ -1,21 +1,19 @@
-# Handoff — 2026-07-18
+# Handoff — 2026-07-21
 
-**Branch:** main (#63 closed this session)
+**Branch:** main (#59 closed this session, #70 cross-repo work verified)
 
 ## What Changed This Session
 
-Completed #63 — OpenClawAgentRegistry 1:N support. Fixed silent data-corruption bug where `deregister(agentA)` destroyed `agentB`'s mapping when both shared a caseId. Replaced `caseToAgent` (1:1) with `caseToAgents` multimap. Added `DeregistrationResult` record for atomic last-agent detection. StatusListener guards case closure until all agents complete. Design reviewed adversarially (5 rounds, 11 issues, all verified, $15.50). Filed #70 for parallel COMMAND routing.
+Completed #59 — Playwright E2E test automation for demo UI. 19 browser-level tests covering the full SSE-driven Lit dashboard: scenario lifecycle, agent pipeline (5 outcome states), channel feed, oversight gate with confirmation dialog, completion banners, theme toggle, SSE reconnection, error handling. Mock SSE server with worker-scoped fixture. Fixed upstream GateRequired constructor break. Also verified #70 cross-repo work landed (qhorus#370, engine#758 closed). Slot 6 still active — can be cleaned up.
 
 ## Immediate Next Step
 
-Pick the next issue from What's Next. #59 (Playwright E2E) and #70 (parallel routing) are both unblocked.
+All open issues are blocked on upstream (#52 OIDC migration, #18 after_tool_call hook). Check OpenClaw upstream for progress on these, or pick up new work.
 
 ## What's Next
 
 | # | Description | Scale | Complexity | Notes |
 |---|-------------|-------|------------|-------|
-| #70 | ChannelBackend parallel COMMAND routing for multi-agent cases | M | Med | Filed this session; complements #63 |
-| #59 | Playwright/E2E test automation for demo UI | M | Med | Now valuable — UI uses shared components |
 | #52 | Migrate plugin auth from bridge token to OIDC | S | Med | Blocked by upstream OpenClaw |
 | #18 | Track: OpenClaw after_tool_call hook not firing | — | — | Upstream blocker |
 
