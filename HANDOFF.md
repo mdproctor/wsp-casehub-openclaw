@@ -1,14 +1,14 @@
-# Handoff — 2026-07-21
+# Handoff — 2026-07-23
 
-**Branch:** main (#59 closed this session, #70 cross-repo work verified)
+**Branch:** main (#72, #71 closed this session)
 
 ## What Changed This Session
 
-Completed #59 — Playwright E2E test automation for demo UI. 19 browser-level tests covering the full SSE-driven Lit dashboard: scenario lifecycle, agent pipeline (5 outcome states), channel feed, oversight gate with confirmation dialog, completion banners, theme toggle, SSE reconnection, error handling. Mock SSE server with worker-scoped fixture. Fixed upstream GateRequired constructor break. Also verified #70 cross-repo work landed (qhorus#370, engine#758 closed). Slot 6 still active — can be cleaned up.
+Closed #72 (SSE reconnection backfill) and #71 (state-aware duration text) on a single branch. Both were UI bugs in the Lit demo dashboard found by the adversarial E2E review (#59). Added `onopen` handler with initial-open skip flag for reconnection backfill in `case-execution-view` and `demo-launcher`. Extracted `_durationText()` method in `case-worker-pipeline` for state-appropriate wording. E2E tests updated: reconnection backfill test + duration text assertions for all 5 outcome states.
 
 ## Immediate Next Step
 
-All open issues are blocked on upstream (#52 OIDC migration, #18 after_tool_call hook). Check OpenClaw upstream for progress on these, or pick up new work.
+All remaining open issues are blocked on upstream (#52 OIDC migration, #18 after_tool_call hook). Check OpenClaw upstream for progress, or pick up new work.
 
 ## What's Next
 
