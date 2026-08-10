@@ -1,10 +1,10 @@
-# Handoff — 2026-07-25
+# Handoff — 2026-08-10
 
-**Branch:** main (#74 closed this session; #72, #71 closed earlier in session)
+**Branch:** main (#76 closed this session)
 
 ## What Changed This Session
 
-Closed three issues. #72 (SSE reconnection backfill) and #71 (state-aware duration text) — two UI bugs in the Lit demo dashboard. #74 (reactive-to-blocking SPI migration) — deleted `ReactiveOpenClawWorkerProvisioner`, `ReactiveOpenClawCaseChannelProvider`, and their tests (903 lines removed); engine completed virtual thread migration and removed all reactive SPI interfaces. Also cleaned up stale `issue-46` branch: promoted 17 unpromoted blog entries to workspace main, created missing EPIC-CLOSED.md.
+Closed #76 — test compilation errors from upstream record constructor changes. Three records gained new fields: `MessageReceivedEvent` (target, actorType), `ProvisionContext` (workerCredentialToken), `RiskDecision.GateRequired` (quorum/QuorumConfig). Updated 4 test files, 12 constructor call sites. All 206 tests pass. Landed as `0e98a38`.
 
 ## Immediate Next Step
 
